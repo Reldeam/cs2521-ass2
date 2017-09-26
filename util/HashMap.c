@@ -7,12 +7,15 @@
 #include "BST.h"
 
 static const int MAX_CAPACITY = 1 << 30;
-static const int DEFAULT_CAPACITY = 16;
+static const int DEFAULT_CAPACITY = 128;
 static const int SIZE_MULTIPLIER = 2;
 static const float LOAD_FACTOR = 0.75f;
-static const int NUM_BUCKET_TRANSFERS = 8;
+static const int NUM_BUCKET_TRANSFERS = 4;
 
 struct HashMap {
+	
+	int (* compare) (void * a, void * b);
+	int (* hash) (void * key);
 	
 	BST * table;
 	int capacity;
@@ -27,22 +30,33 @@ struct HashMap {
 	int currentRemoveIndex;
 };
 
-static int getIndex(void * key)
+static int basicHash(int hash)
+{
+	hash ^= (hash >> 20) ^ (hash >> 12);
+	hash ^= (hash >> 7) ^ (hash >> 4);
+	
+	return hash;
+}
+
+static int defaultHash(void * key)
 {
 	int index = (int) key;
 	
-	index ^= (index >> 20) ^ (index >> 12);
-	index ^= (index >> 7) ^ (index >> 4);
-	
-	return index;
+	return basicHash(index);
 }
 
-struct HashEntry {
-	void * key;
-	void * value;
-};
+static int stringHash(void * key)
+{
+	char * str = (char *) key;
+	int hash = 5381;
+    int c;
 
-typedef struct HashEntry * HashEntry;
+    while((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+	}
+
+    return hash;
+}
 
 static HashEntry newHashEntry(void * key, void * value)
 {
@@ -53,18 +67,31 @@ static HashEntry newHashEntry(void * key, void * value)
 	return entry;
 }
 
-static int compare(void * a, void * b)
+static int defaultCompare(void * a, void * b)
 {
 	HashEntry A = (HashEntry) a;
 	HashEntry B = (HashEntry) b;
 	
-	return getIndex(A->key) - getIndex(B->key);
+	return defaultHash(A->key) - defaultHash(B->key);
 }
 
-HashMap newHashMap()
+static int stringCompare(void * a, void * b)
+{
+	HashEntry A = (HashEntry) a;
+	HashEntry B = (HashEntry) b;
+	return(strcmp((char *) A->key, (char *) B->key));
+}
+
+HashMap newHashMap(int (* hash) (void * key), int (* compare) (void * a, void * b))
 {
 	HashMap map = malloc(sizeof(struct HashMap));
+
+	if(!compare) map->compare = defaultCompare;
+	else map->compare = compare;
 	
+	if(!hash) map->hash = defaultHash;
+	else map->hash = hash;
+		
 	map->table = malloc(DEFAULT_CAPACITY * sizeof(BST));
 	memset(map->table, 0, DEFAULT_CAPACITY * sizeof(BST));
 	
@@ -80,6 +107,11 @@ HashMap newHashMap()
 	map->currentRemoveIndex = 0;
 	
 	return map;
+}
+
+HashMap newStringKeyHashMap()
+{
+	return newHashMap(stringHash, stringCompare);
 }
 
 static void stopResizing(HashMap map)
@@ -155,7 +187,7 @@ static void resizeHashMap(HashMap map)
 
 void * getFromHashMap(HashMap map, void * key)
 {
-	int index = getIndex(key);
+	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
 	
 	BST tree = map->table[hash];
@@ -280,13 +312,13 @@ int keyIsInHashMap(HashMap map, void * key)
 
 void putInHashMap(HashMap map, void * key, void * value)
 {
-	int index = getIndex(key);
+	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
 	
 	HashEntry entry = newHashEntry(key, value);
 	
 	if(!map->table[hash]) {
-		map->table[hash] = newBST(compare);
+		map->table[hash] = newBST(map->compare);
 	}
 	
 	if(map->table[hash] && removeFromBST(map->table[hash], (void *) entry)) {
@@ -312,7 +344,7 @@ void putInHashMap(HashMap map, void * key, void * value)
 
 void * removeFromHashMap(HashMap map, void * key)
 {
-	int index = getIndex(key);
+	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
 	
 	BST tree = map->table[hash];

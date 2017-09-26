@@ -1,6 +1,15 @@
 #ifndef HASH_MAP_H
 #define HASH_MAP_H
 
+#include <stdarg.h>
+
+struct HashEntry {
+	void * key;
+	void * value;
+};
+
+typedef struct HashEntry * HashEntry;
+
 /**
 * HashMap runs all operation in constant time. The map starts with able
 * capacity of 16 and a load factor of 0.75. The map will automatically
@@ -14,7 +23,9 @@ typedef struct HashMap * HashMap;
 * key appears at most once in the HashMap. HashMap allows for
 * constant-time performance for all methods.
 */
-HashMap newHashMap();
+HashMap newHashMap(int (* hash) (void * key), int (* compare) (void * a, void * b));
+
+HashMap newStringKeyHashMap();
 
 /**
 * Gets the value that the given key is mapped to and returns it.
