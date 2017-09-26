@@ -7,8 +7,8 @@ all : $(BINS)
 #main : main.o util/BST.o util/Queue.o util/PriorityQueue.o util/LinkedList.o util/HashMap.o
 #main.o : main.c util/BST.h util/Queue.h util/PriorityQueue.h
 
-pagerank : pagerank.o  util/HashMap.o util/BST.o
-pagerank.o : pagerank.c util/HashMap.h util/BST.h
+pagerank : pagerank.o  util/HashMap.o util/BST.o util/LinkedList.o
+pagerank.o : pagerank.c util/HashMap.h util/BST.h util/LinkedList.h
 
 main : main.o util/BST.o util/Queue.o util/PriorityQueue.o util/LinkedList.o util/HashMap.o
 main.o : main.c util/BST.h util/Queue.h util/PriorityQueue.h
