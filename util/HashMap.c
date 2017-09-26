@@ -7,10 +7,10 @@
 #include "BST.h"
 
 static const int MAX_CAPACITY = 1 << 30;
-static const int DEFAULT_CAPACITY = 8;
+static const int DEFAULT_CAPACITY = 16;
 static const int SIZE_MULTIPLIER = 2;
 static const float LOAD_FACTOR = 0.75f;
-static const int NUM_BUCKET_TRANSFERS = 5;
+static const int NUM_BUCKET_TRANSFERS = 8;
 
 struct HashMap {
 	
