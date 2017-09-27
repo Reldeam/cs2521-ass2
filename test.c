@@ -6,100 +6,34 @@
 #include <math.h>
 
 #include "util/BST.h"
-
-static int compare(void * a, void * b)
-{
-	return strcmp((char *) a, (char *) b);
-}
+#include "util/HashMap.h"
 
 int main()
 {
-	printf("Begin test...\n");
 	
-	BST tree = newBST(compare);
+	HashMap map = newStringKeyHashMap();
 	
-	insertIntoBST(tree, "mars");
-	insertIntoBST(tree, "has");
-	insertIntoBST(tree, "long");
-	insertIntoBST(tree, "been");
-	insertIntoBST(tree, "the");
-	insertIntoBST(tree, "subject");
-	insertIntoBST(tree, "of");
-	insertIntoBST(tree, "human");
-	insertIntoBST(tree, "interest");
-	insertIntoBST(tree, "early");
-	insertIntoBST(tree, "telescopic");
-	insertIntoBST(tree, "observations");
-	insertIntoBST(tree, "revealed");
-	insertIntoBST(tree, "color");
-	insertIntoBST(tree, "changes");
-	insertIntoBST(tree, "on");
-	insertIntoBST(tree, "surface");
-	insertIntoBST(tree, "that");
-	insertIntoBST(tree, "were");
-	insertIntoBST(tree, "attributed");
-	insertIntoBST(tree, "to");
-	insertIntoBST(tree, "seasonal");
-	insertIntoBST(tree, "vegetation");
-	insertIntoBST(tree, "and");
-	insertIntoBST(tree, "apparent");
-	insertIntoBST(tree, "linear");
+	putInHashMap(map, "a", "Apple");
+	putInHashMap(map, "b", "Banana");
+	putInHashMap(map, "c", "Carrot");
+	putInHashMap(map, "d", "Donut");
 	
-	insertIntoBST(tree, "feastures");
-	insertIntoBST(tree, "ascribed");
-	insertIntoBST(tree, "intelligent");
-	insertIntoBST(tree, "design");
-	insertIntoBST(tree, "sun");
-	insertIntoBST(tree, "pluto");
-	insertIntoBST(tree, "g");
-	insertIntoBST(tree, "h");
-	insertIntoBST(tree, "i");
-	insertIntoBST(tree, "j");
-	insertIntoBST(tree, "k");
-	insertIntoBST(tree, "l");
-	insertIntoBST(tree, "m");
-	insertIntoBST(tree, "n");
-	insertIntoBST(tree, "o");
-	insertIntoBST(tree, "p");
-	insertIntoBST(tree, "q");
-	insertIntoBST(tree, "r");
-	insertIntoBST(tree, "s");
-	insertIntoBST(tree, "t");
-	insertIntoBST(tree, "u");
-	insertIntoBST(tree, "v");
-	insertIntoBST(tree, "w");
-	insertIntoBST(tree, "x");
-	insertIntoBST(tree, "y");
-	insertIntoBST(tree, "z");
+	putInHashMap(map, "e", "Egg");
+	putInHashMap(map, "f", "Flour");
+	putInHashMap(map, "g", "Glue");
+	putInHashMap(map, "h", "Hat");
 	
-	insertIntoBST(tree, "a");
-	insertIntoBST(tree, "b");
-	insertIntoBST(tree, "c");
-	insertIntoBST(tree, "d");
-	insertIntoBST(tree, "e");
-	insertIntoBST(tree, "f");
-	insertIntoBST(tree, "g");
-	insertIntoBST(tree, "h");
-	insertIntoBST(tree, "i");
-	insertIntoBST(tree, "j");
-	insertIntoBST(tree, "k");
-	insertIntoBST(tree, "l");
-	insertIntoBST(tree, "m");
-	insertIntoBST(tree, "n");
-	insertIntoBST(tree, "o");
-	insertIntoBST(tree, "p");
-	insertIntoBST(tree, "q");
-	insertIntoBST(tree, "r");
-	insertIntoBST(tree, "s");
-	insertIntoBST(tree, "t");
-	insertIntoBST(tree, "u");
-	insertIntoBST(tree, "v");
-	insertIntoBST(tree, "w");
-	insertIntoBST(tree, "x");
-	insertIntoBST(tree, "y");
-	insertIntoBST(tree, "z");
+	printf("Total size of HashMap: %d\n", sizeOfHashMap(map));
 	
-	printf("Size: %d\n", sizeOfBST(tree));
+	printf("A is for: %s\n", (char *) getFromHashMap(map, "a"));
+	printf("B is for: %s\n", (char *) getFromHashMap(map, "b"));
+	printf("C is for: %s\n", (char *) getFromHashMap(map, "c"));
+	printf("D is for: %s\n", (char *) getFromHashMap(map, "d"));
+	
+	printf("E is for: %s\n", (char *) getFromHashMap(map, "e"));
+	printf("F is for: %s\n", (char *) getFromHashMap(map, "f"));
+	printf("G is for: %s\n", (char *) getFromHashMap(map, "g"));
+	printf("H is for: %s\n", (char *) getFromHashMap(map, "h"));
 	
 	return 1;
 }

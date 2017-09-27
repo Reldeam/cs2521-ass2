@@ -4,8 +4,8 @@ BINS=pagerank invertedIndex test
 
 all : $(BINS)
 
-test : test.o util/BST.o
-test.o : test.c util/BST.c
+test : test.o util/BST.o util/HashMap.o
+test.o : test.c util/BST.c util/HashMap.h
 
 pagerank : pagerank.o  util/HashMap.o util/BST.o util/LinkedList.o -lm
 pagerank.o : pagerank.c util/HashMap.h util/BST.h util/LinkedList.h 
@@ -20,7 +20,7 @@ BST.o : util/BST.c util/BST.h util/Queue.h
 Queue.o : util/Queue.c util/Queue.h
 LinkedList.o : util/LinkedList.c util/LinkedList.h
 PriorityQueue.o : util/PriorityQueue.c util/PriorityQueue.h util/BST.h
-HashMap.o: util/HashMap.c util/HashMap.h
+HashMap.o: util/HashMap.c util/HashMap.h util/BST.h
 
 
 
