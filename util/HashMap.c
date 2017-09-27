@@ -189,6 +189,7 @@ void * getFromHashMap(HashMap map, void * key)
 {
 	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
+	if(hash < 0) hash += map->capacity;
 	
 	BST tree = map->table[hash];
 	
@@ -314,17 +315,18 @@ void putInHashMap(HashMap map, void * key, void * value)
 {
 	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
+	if(hash < 0) hash += map->capacity;
 	
 	HashEntry entry = newHashEntry(key, value);
 	
 	if(!map->table[hash]) {
 		map->table[hash] = newBST(map->compare);
 	}
-	
-	if(map->table[hash] && removeFromBST(map->table[hash], (void *) entry)) {
+	else if(removeFromBST(map->table[hash], (void *) entry)) {
 		map->size--;
 	}
-	else if(map->resizing) {
+	
+	if(map->resizing) {
 		int previousHash = index % map->previousCapacity;
 		if(map->previousTable[previousHash] && removeFromBST(map->previousTable[previousHash], (void *) entry)) {
 			map->previousSize--;
@@ -346,6 +348,7 @@ void * removeFromHashMap(HashMap map, void * key)
 {
 	int index = basicHash(map->hash(key));
 	int hash = index % map->capacity;
+	if(hash < 0) hash += map->capacity;
 	
 	BST tree = map->table[hash];
 	

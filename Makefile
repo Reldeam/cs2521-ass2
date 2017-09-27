@@ -1,11 +1,17 @@
 CC=gcc
 CFLAGS=-Wall -Werror -g
-BINS=pagerank
+BINS=pagerank invertedIndex test
 
 all : $(BINS)
 
+test : test.o util/BST.o
+test.o : test.c util/BST.c
+
 pagerank : pagerank.o  util/HashMap.o util/BST.o util/LinkedList.o -lm
 pagerank.o : pagerank.c util/HashMap.h util/BST.h util/LinkedList.h 
+
+invertedIndex : invertedIndex.o  util/HashMap.o util/BST.o util/Queue.o util/PriorityQueue.o
+invertedIndex.o : invertedIndex.c util/HashMap.h util/BST.h util/Queue.h util/PriorityQueue.h
 
 main : main.o util/BST.o util/Queue.o util/PriorityQueue.o util/LinkedList.o util/HashMap.o
 main.o : main.c util/BST.h util/Queue.h util/PriorityQueue.h

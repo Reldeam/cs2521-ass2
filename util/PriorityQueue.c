@@ -7,7 +7,6 @@
 
 struct PriorityQueue {
 	BST tree;
-	int (* compare) (void * a, void * b);
 };
 
 PriorityQueue newPriorityQueue(int (* compare) (void * a, void * b))
@@ -15,7 +14,6 @@ PriorityQueue newPriorityQueue(int (* compare) (void * a, void * b))
 	PriorityQueue queue = malloc(sizeof(struct PriorityQueue));
 	
 	queue->tree = newBST(compare);
-	queue->compare = compare;
 	
 	return queue;
 }
