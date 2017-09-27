@@ -14,9 +14,6 @@
 
 //#include "util/PriorityQueue.h"
 
-
-
-
 struct URLSet {
     HashMap incoming;
     HashMap outgoing;
@@ -102,6 +99,12 @@ int main (int argc, char *argv[])
         fclose(fp);
 	}
 	
+	for(i = 0; i < sizeOfHashMap(sets); i++) {
+		url = urls[i];
+		set = (URLSet) getFromHashMap(sets, url);
+		printf("Page rank of %s: %f\n", url, set->pagerank);
+	}
+	
 	char ** outgoingUrls;
 	char ** incomingUrls;
 	
@@ -117,31 +120,38 @@ int main (int argc, char *argv[])
 		for(j = 0; j < sizeOfHashMap(set->outgoing); j++) {
 			outgoingSet = getFromHashMap(set->outgoing, outgoingUrls[j]);
 			
+			
 			set->wInFactor += sizeOfHashMap(outgoingSet->incoming);
+			
 			set->wOutFactor += sizeOfHashMap(outgoingSet->outgoing);
+			if(!sizeOfHashMap(outgoingSet->outgoing)) set->wOutFactor += 0.5;
 		}
+		
+		if(set->wInFactor) set->wInFactor = 1.0 / set->wInFactor;
+		
+		if(!set->wOutFactor) set->wOutFactor = 0.5;
+		set->wOutFactor = 1.0 / set->wOutFactor;
 		
 		printf("wInFactor for %s: %f\n", url, set->wInFactor);
 		printf("wOutFactor for %s: %f\n", url, set->wOutFactor);
 		
-		if(set->wInFactor > 0) set->wInFactor = 1.0 / set->wInFactor;
-		if(set->wOutFactor > 0) set->wOutFactor = 1.0 / set->wOutFactor;
-		
-		
+		//if(set->wInFactor > 0) set->wInFactor = 1.0 / set->wInFactor;
+		//if(set->wOutFactor > 0) set->wOutFactor = 1.0 / set->wOutFactor;
 		
 		//free(outgoingUrls);
 	}
 	
 	double dampShift = (1 - d) / sizeOfHashMap(sets);
+	//double dampShift = (1 - d);
+	
+	printf("damp shift: %f\n", dampShift);
 	
 	double diff = diffPR;
 	int iteration = 0;
-	int sum, wIn, wOut;
+	double wIn, wOut, sum;
 	
 	// Weighted Page Rank
 	while(iteration < maxIterations && diff >= diffPR) {
-		
-		
 		
 		for(i = 0; i < sizeOfHashMap(sets); i++) {
 			
@@ -160,12 +170,20 @@ int main (int argc, char *argv[])
 				incomingSet = getFromHashMap(set->incoming, incomingUrls[j]);
 				
 				wIn = sizeOfHashMap(set->incoming) * incomingSet->wInFactor;
-				wOut = sizeOfHashMap(set->outgoing) * incomingSet->wOutFactor;
+				
+				if(!sizeOfHashMap(set->outgoing)) wOut = 0.5;
+				else wOut = sizeOfHashMap(set->outgoing);
+				
+				wOut *= incomingSet->wOutFactor;
+				
+				printf("wIn: %f, wOut: %f\n", wIn, wOut);
 				
 				sum += incomingSet->pagerank * wIn * wOut;
 			}
 			
-			set->newPagerank = dampShift + d * sum;
+			printf("Sum: %f\n", sum);
+			
+			set->newPagerank = dampShift + (d * sum);
 			
 			printf("New pagerank for %s: %f\n", url, set->newPagerank);
 			
@@ -177,10 +195,11 @@ int main (int argc, char *argv[])
 		for(i = 0; i < sizeOfHashMap(sets); i++) {
 			url = urls[i];
 			set = (URLSet) getFromHashMap(sets, url);
-			
-			diff += abs(set->newPagerank - set->pagerank);
+			diff += fabs(set->newPagerank - set->pagerank);
 			set->pagerank = set->newPagerank;
 		}
+		
+		printf("Difference: %f\n", diff);
 		
 		iteration++;
 	}
