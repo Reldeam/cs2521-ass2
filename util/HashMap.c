@@ -7,11 +7,11 @@
 #include "BST.h"
 
 static const unsigned long MAX_CAPACITY = 1 << 31;
-static const unsigned long DEFAULT_CAPACITY = 512;
+static const unsigned long DEFAULT_CAPACITY = 2;
 
 static const int SIZE_MULTIPLIER = 2;
 static const float LOAD_FACTOR = 0.75f;
-static const int NUM_BUCKET_TRANSFERS = 16;
+static const int NUM_BUCKET_TRANSFERS = 2;
 
 static HashEntry newHashEntry(void * key, void * value);
 static int keyIsInTree(BST tree, void * key);
@@ -343,6 +343,7 @@ static void transferBuckets(HashMap map)
 		while(!isEmptyBST(tree)) {
 			entry = (HashEntry) getMaxValueFromBST(tree);
 			removeFromBST(tree, (void *) entry);
+			printf("Removed from previous map: %s\n", (char *) entry->value);
 			putInHashMap(map, entry->key, entry->value);
 			map->previousSize--;
 		}
@@ -360,6 +361,8 @@ static void resizeHashMap(HashMap map)
 	
 	while(map->resizing) transferBuckets(map);
 	
+	printf("Starting new resize...\n");
+	
 	map->previousCapacity = map->capacity;
 	map->capacity *= SIZE_MULTIPLIER;
 	
@@ -371,12 +374,15 @@ static void resizeHashMap(HashMap map)
 	memset(map->table, 0, map->capacity * sizeof(BST));
 	
 	map->transferIndex = 0;
+	
 	map->resizing = 1;
 	map->transfering = 0;
 }
 
 static void stopResizing(HashMap map)
 {
+	printf("Finished resize.\n");
+	
 	free(map->previousTable);
 	map->previousTable = NULL;
 	map->previousSize = 0;
