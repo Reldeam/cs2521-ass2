@@ -1,295 +1,293 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
-
 #include "HashMap.h"
 #include "BST.h"
 
-static const unsigned long MAX_CAPACITY = 1 << 31;
-static const unsigned long DEFAULT_CAPACITY = 2;
+#define DEFAULT_SIZE 16
+#define LOAD_FACTOR 0.75
+#define SIZE_MULTIPLIER 2
+#define TRANSFER_RATE 8
 
-static const int SIZE_MULTIPLIER = 2;
-static const float LOAD_FACTOR = 0.75f;
-static const int NUM_BUCKET_TRANSFERS = 2;
+struct HashEntry {
+	void * key;
+	void * value;
+	int (*compare) (void * a, void * b);
+};
 
-static HashEntry newHashEntry(void * key, void * value);
-static int keyIsInTree(BST tree, void * key);
+typedef struct HashEntry * HashEntry;
 
-static unsigned long basicHash(unsigned int hash);
-static unsigned long defaultHash(void * key);
+static HashEntry newHashEntry(void * key, void * value, int (*compare) (void * a, void * b));
+static HashEntry getHashEntry(HashMap map, void * key);
+static int compareEntries(void * a, void * b);
+static unsigned long hashKey(HashMap map, void * key);
+
 static unsigned long stringHash(void * key);
-
-static int defaultCompare(void * a, void * b);
 static int stringCompare(void * a, void * b);
 
-static void stopResizing(HashMap map);
+static void resize(HashMap map);
 static void transferBuckets(HashMap map);
-static void resizeHashMap(HashMap map);
 
 struct HashMap {
+	unsigned long (* hash) (void * value);
+	int (*compare) (void * a, void * b);
 	
-	int (* compare) (void * a, void * b);
-	unsigned long (* hash) (void * key);
+	BST * buckets;
 	
-	BST * table;
 	unsigned long capacity;
 	unsigned long size;
 	
-	char transfering;
-	char resizing;
-	
-	BST * previousTable;
-	unsigned long previousCapacity;
-	unsigned long previousSize;
-	unsigned long transferIndex;
+	struct HashMap * old;
+	int resizing;
+	int transfering;
 };
 
-HashMap newHashMap(unsigned long (* hash) (void * key), int (* compare) (void * a, void * b))
+HashMap newHashMap(int (*compare) (void * a, void * b), unsigned long (* hash) (void * value))
 {
 	HashMap map = malloc(sizeof(struct HashMap));
-
-	if(!compare) map->compare = defaultCompare;
-	else map->compare = compare;
 	
-	if(!hash) map->hash = defaultHash;
-	else map->hash = hash;
-		
-	map->table = malloc(DEFAULT_CAPACITY * sizeof(BST));
-	memset(map->table, 0, DEFAULT_CAPACITY * sizeof(BST));
+	map->hash = hash;
+	map->compare = compare;
 	
-	map->capacity = DEFAULT_CAPACITY;
+	map->buckets = malloc(sizeof(BST) * DEFAULT_SIZE);
+	memset(map->buckets, 0, sizeof(BST) * DEFAULT_SIZE);
+	
+	map->capacity = DEFAULT_SIZE;
 	map->size = 0;
 	
-	map->transfering = 0;
+	map->old = NULL;
 	map->resizing = 0;
-	
-	map->previousTable = NULL;
-	map->previousCapacity = 0;
-	map->previousSize = 0;
-	map->transferIndex = 0;
+	map->transfering = 0;
 	
 	return map;
 }
 
-HashMap newStringKeyHashMap()
+HashMap newStringHashMap()
 {
-	return newHashMap(stringHash, stringCompare);
+	return newHashMap(stringCompare, stringHash);
 }
 
-void * getFromHashMap(HashMap map, void * key)
+int addHashMap(HashMap map, void * key, void * value)
 {
-	unsigned long hash = basicHash(map->hash(key));
+	if(!map) return 0;
+	if(map->resizing && !map->transfering) transferBuckets(map);
+	
+	unsigned long hash = hashKey(map, key);
 	unsigned long index = hash % map->capacity;
 	
-	BST tree = map->table[index];
+	HashEntry entry = newHashEntry(key, value, map->compare);
 	
-	if(!tree && map->resizing) {
-		unsigned long previousIndex = hash % map->previousCapacity;
-		tree = map->previousTable[previousIndex];
-	}
-	
-	if(!tree) return NULL;
-	
-	HashEntry search = newHashEntry(key, NULL);
-	HashEntry entry = (HashEntry) getValueFromBST(tree, (void *) search);
-	
-	if(map->resizing) transferBuckets(map);
-	
-	if(entry) return entry->value;
-	return NULL;
-}
-
-void getKeySetOfHashMap(HashMap map, void ** keySet)
-{
-	assert(map);
-	
-	unsigned long index = 0;
-	
-	unsigned long i;
-	BST tree;
-	HashEntry entry;
-	
-	for(i = 0; i < map->capacity; i++) {
-		tree = map->table[i];
-		if(!tree) continue;
-		tree = getCopyOfBST(tree);
-		while(!isEmptyBST(tree)) {
-			entry = (HashEntry) removeFromBST(tree, getMinValueFromBST(tree));
-			keySet[index++] = entry->key;
-		}
-	}
-	
-	if(map->resizing) {
-		for(i = 0; i < map->previousCapacity; i++) {
-			tree = map->previousTable[i];
-			if(!tree) continue;
-			tree = getCopyOfBST(tree);
-			while(!isEmptyBST(tree)) {
-				entry = (HashEntry) removeFromBST(tree, getMinValueFromBST(tree));
-				keySet[index++] = entry->key;
-			}
-		}
-	}
-}
-
-void getValueSetOfHashMap(HashMap map, void ** valueSet)
-{
-	assert(map);
-	
-	unsigned long index = 0;
-	
-	unsigned long i;
-	BST tree;
-	HashEntry entry;
-	
-	for(i = 0; i < map->capacity; i++) {
-		tree = map->table[i];
-		if(!tree) continue;
-		tree = getCopyOfBST(tree);
-		while(!isEmptyBST(tree)) {
-			entry = (HashEntry) removeFromBST(tree, getMinValueFromBST(tree));
-			valueSet[index++] = entry->value;
-		}
-	}
-	
-	if(map->resizing) {
-		for(i = 0; i < map->previousCapacity; i++) {
-			tree = map->previousTable[i];
-			if(!tree) continue;
-			tree = getCopyOfBST(tree);
-			while(!isEmptyBST(tree)) {
-				entry = (HashEntry) removeFromBST(tree, getMinValueFromBST(tree));
-				valueSet[index++] = entry->value;
-			}
-		}
-	}
-}
-
-int isEmptyHashMap(HashMap map)
-{
-	if(map->resizing) transferBuckets(map);
-	
-	if(map->size == 0 && map->previousSize == 0) return 0;
-	return 1;
-}
-
-int keyIsInHashMap(HashMap map, void * key)
-{
-	BST tree;
-	unsigned long i;
-	
-	for(i = 0; i < map->capacity; i++) {
-		tree = map->table[i];
-		if(tree && keyIsInTree(tree, key)) return 1;
-	}
-	
-	if(!map->resizing) return 0;
-	
-	for(i = 0; i < map->previousCapacity; i++) {
-		tree = map->previousTable[i];
-		if(tree && keyIsInTree(tree, key)) return 1;
-	}
-	
-	return 0;
-}
-
-void putInHashMap(HashMap map, void * key, void * value)
-{
-	unsigned long hash = basicHash(map->hash(key));
-	unsigned long index = hash % map->capacity;
-	
-	HashEntry entry = newHashEntry(key, value);
-	
-	// If no bucket for this hash exists, create it.
-	if(!map->table[index]) {
-		map->table[index] = newBST(map->compare);
-	}
-	// Remove the current key, value pair if it exists.
-	else if(removeFromBST(map->table[index], (void *) entry)) {
+	if(!map->buckets[index])
+		map->buckets[index] = newBST(compareEntries);	
+	else if(existsBST(map->buckets[index], entry)) {
+		removeBST(map->buckets[index], entry);
 		map->size--;
 	}
 	
-	// Remove the current key, value pair if it exists in previous table.
-	if(map->resizing) {
-		int previousIndex = hash % map->previousCapacity;
-		if(map->previousTable[previousIndex] && removeFromBST(map->previousTable[previousIndex], (void *) entry)) {
-			map->previousSize--;
+	addBST(map->buckets[index], entry);
+	
+	map->size++;
+	
+	if((double) map->size / map->capacity > LOAD_FACTOR) {
+		resize(map);
+	}
+	
+	return 1;
+}
+
+void * getHashMap(HashMap map, void * key)
+{
+	if(!map) return NULL;
+	if(map->resizing) transferBuckets(map);
+	
+	HashEntry entry = getHashEntry(map, key);
+	if(!entry) return NULL;
+	
+	return entry->value;
+}
+
+void * getKeyHashMap(HashMap map, void * key)
+{
+	if(!map) return NULL;
+	if(map->resizing) transferBuckets(map);
+	
+	HashEntry entry = getHashEntry(map, key);
+	if(!entry) return NULL;
+	
+	return entry->key;
+}
+
+void * removeHashMap(HashMap map, void * key)
+{
+	if(!map) return NULL;
+	if(map->resizing) transferBuckets(map);
+	
+	unsigned long hash = hashKey(map, key);
+	unsigned long index = hash % map->capacity;
+	
+	HashEntry entry = newHashEntry(key, NULL, map->compare);
+	
+	void * result = NULL;
+	
+	if(map->buckets[index]) {
+		result = removeBST(map->buckets[index], entry);
+		if(result) map->size--;
+	}
+	
+	if(!result && map->resizing) {
+		result = removeHashMap(map->old, key);
+	}
+	
+	return result;
+}
+
+int existsHashMap(HashMap map, void * key)
+{
+	if(!map) return 0;
+	if(map->resizing) transferBuckets(map);
+	
+	unsigned long hash = hashKey(map, key);
+	unsigned long index = hash % map->capacity;
+	
+	if(!map->buckets[index]) return 0;
+	
+	HashEntry entry = newHashEntry(key, NULL, map->compare);
+	
+	int exists = existsBST(map->buckets[index], entry);
+	
+	if(!exists && map->old) return existsHashMap(map->old, key);
+	return exists;
+}
+
+int sizeHashMap(HashMap map)
+{
+	if(map->resizing) transferBuckets(map);
+	
+	if(map->resizing) return map->size + map->old->size;
+	return map->size;
+}
+
+int emptyHashMap(HashMap map)
+{
+	if(map->resizing) transferBuckets(map);
+	
+	if(map->resizing && !emptyHashMap(map->old)) return 0;
+	return sizeHashMap(map) ? 0 : 1;
+}
+
+static void resize(HashMap map)
+{
+	while(map->resizing) transferBuckets(map);
+	
+	HashMap old = newHashMap(map->compare, map->hash);
+	
+	old->buckets = map->buckets;
+	old->size = map->size;
+	old->capacity = map->capacity;
+	
+	map->size = 0;
+	map->capacity *= SIZE_MULTIPLIER;
+	
+	map->buckets = malloc(sizeof(BST) * map->capacity);
+	memset(map->buckets, 0, sizeof(BST) * map->capacity);
+	
+	map->old = old;
+	map->resizing = 1;
+	
+	transferBuckets(map);
+}
+
+static void transferBuckets(HashMap map)
+{
+	map->transfering = 1;
+	
+	HashEntry entry;
+	int i, j = 0;
+	
+	for(i = 0; i < TRANSFER_RATE; i++) {
+		
+		BST bucket = NULL;
+		
+		while(!bucket && j < map->old->capacity) {
+			bucket = map->old->buckets[j++];
+		}
+		
+		if(!bucket) {
+			freeHashMap(map->old);
+			map->old = NULL;
+			map->resizing = 0;
+			map->transfering = 0;
+			return;
+		}
+		
+		map->old->buckets[j-1] = NULL;
+		
+		while(!emptyBST(bucket)) {
+			entry = removeBST(bucket, maxBST(bucket));
+			addHashMap(map, entry->key, entry->value);
+			
+			map->old->size--;
+			free(entry);
 		}
 	}
 	
-	insertIntoBST(map->table[index], (void *) entry);
-	map->size++;
-	
-	if(map->resizing && !map->transfering) {
-		transferBuckets(map);
-	}
-	
-	if(map->size > (float) map->capacity * LOAD_FACTOR) {
-		resizeHashMap(map);
-	}
+	map->transfering = 0;
 }
 
-void * removeFromHashMap(HashMap map, void * key)
+void freeHashMap(HashMap map)
 {
-	unsigned long hash = basicHash(map->hash(key));
-	unsigned long index = hash % map->capacity;
+	if(!map) return;
 	
-	HashEntry search = newHashEntry(key, NULL);
-	HashEntry entry = NULL;
+	int i;
+	for(i = 0; i < map->capacity; i++) freeBST(map->buckets[i]);
 	
-	BST tree = map->table[index];
-	
-	if(tree) entry = (HashEntry) removeFromBST(tree, search);
-	
-	if(!entry && map->resizing) {
-		unsigned long previousIndex = index % map->previousCapacity;
-		tree = map->previousTable[previousIndex];
-		if(tree) entry = (HashEntry) removeFromBST(tree, search);
-	}
-	
-	if(map->resizing) transferBuckets(map);
-	return entry;
+	if(map->resizing) freeHashMap(map->old);
+	free(map);
 }
 
-int sizeOfHashMap(HashMap map)
-{
-	return map->size + map->previousSize;
-}
-
-/**********************************************************/
-// STATIC METHODS
-
-static HashEntry newHashEntry(void * key, void * value)
+static HashEntry newHashEntry(void * key, void * value, int (*compare) (void * a, void * b))
 {
 	HashEntry entry = malloc(sizeof(struct HashEntry));
-	
 	entry->key = key;
 	entry->value = value;
+	entry->compare = compare;
 	
 	return entry;
 }
 
-static int keyIsInTree(BST tree, void * key)
+static HashEntry getHashEntry(HashMap map, void * key)
 {
-	HashEntry entry = newHashEntry(key, NULL);
-	if(isInBST(tree, entry)) return 1;
-	return 0;
+	if(!map) return NULL;
+	
+	unsigned long hash = hashKey(map, key);
+	unsigned long index = hash % map->capacity;
+	
+	HashEntry entry = newHashEntry(key, NULL, map->compare);
+	
+	if(map->buckets[index])
+		entry = (HashEntry) getBST(map->buckets[index], entry);
+	
+	if(!entry && map->resizing) entry = getHashMap(map->old, key);
+	
+	return entry;
 }
 
-static unsigned long basicHash(unsigned int hash)
+static int compareEntries(void * a, void * b)
 {
+	HashEntry A = (HashEntry) a;
+	HashEntry B = (HashEntry) b;
+	
+	return A->compare(A->key, B->key);
+}
+
+static unsigned long hashKey(HashMap map, void * key)
+{
+	unsigned long hash = map->hash(key);
+	
 	hash ^= (hash >> 20) ^ (hash >> 12);
 	hash ^= (hash >> 7) ^ (hash >> 4);
 	
 	return hash;
-}
-
-static unsigned long defaultHash(void * key)
-{
-	unsigned long index = (unsigned long) key;
-	
-	return basicHash(index);
 }
 
 static unsigned long stringHash(void * key)
@@ -298,97 +296,13 @@ static unsigned long stringHash(void * key)
 	unsigned long hash = 5381;
     unsigned int c;
 
-    while((c = *str++)) {
-        hash = ((hash << 5) + hash) + c;
-	}
+    while((c = * str++)) hash = ((hash << 5) + hash) + c;
 
     return hash;
 }
 
-static int defaultCompare(void * a, void * b)
-{
-	HashEntry A = (HashEntry) a;
-	HashEntry B = (HashEntry) b;
-	
-	return defaultHash(A->key) - defaultHash(B->key);
-}
-
 static int stringCompare(void * a, void * b)
 {
-	HashEntry A = (HashEntry) a;
-	HashEntry B = (HashEntry) b;
-	return(strcmp((char *) A->key, (char *) B->key));
+	return(strcmp((char *) a, (char *) b));
 }
 
-static void transferBuckets(HashMap map)
-{
-	BST tree;
-	HashEntry entry;
-	unsigned long i;
-	
-	map->transfering = 1;
-	
-	for(i = 0; i < NUM_BUCKET_TRANSFERS; i++) {
-		
-		while(!map->previousTable[map->transferIndex]) {
-			map->transferIndex++;
-			if(map->transferIndex >= map->previousCapacity) {
-				stopResizing(map);
-				return;
-			}
-		}
-		
-		tree = map->previousTable[map->transferIndex];
-		
-		while(!isEmptyBST(tree)) {
-			entry = (HashEntry) getMaxValueFromBST(tree);
-			removeFromBST(tree, (void *) entry);
-			printf("Removed from previous map: %s\n", (char *) entry->value);
-			putInHashMap(map, entry->key, entry->value);
-			map->previousSize--;
-		}
-		
-		deleteBST(tree);
-		map->previousTable[map->transferIndex] = NULL;
-	}
-	
-	map->transfering = 0;
-}
-
-static void resizeHashMap(HashMap map)
-{
-	if(map->capacity * SIZE_MULTIPLIER >= MAX_CAPACITY) return;
-	
-	while(map->resizing) transferBuckets(map);
-	
-	printf("Starting new resize...\n");
-	
-	map->previousCapacity = map->capacity;
-	map->capacity *= SIZE_MULTIPLIER;
-	
-	map->previousSize = map->size;
-	map->size = 0;
-	
-	map->previousTable = map->table;
-	map->table = malloc(map->capacity * sizeof(BST));
-	memset(map->table, 0, map->capacity * sizeof(BST));
-	
-	map->transferIndex = 0;
-	
-	map->resizing = 1;
-	map->transfering = 0;
-}
-
-static void stopResizing(HashMap map)
-{
-	printf("Finished resize.\n");
-	
-	free(map->previousTable);
-	map->previousTable = NULL;
-	map->previousSize = 0;
-	
-	map->transfering = 0;
-	map->resizing = 0;
-	
-	map->transferIndex = 0;
-}

@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <math.h>
 
+#include "collection.h"
 #include "util/BST.h"
 #include "util/HashMap.h"
 #include "util/Queue.h"
@@ -12,104 +13,59 @@
 
 #define MAX_WORD_SIZE 30
 
-static void getWords(PriorityQueue keys, HashMap words, char * url);
 static int compare(void * a, void * b);
 
 int main (int argc, char *argv[])
 {
-	Queue urlQueue = newQueue();
+	BST words;
 	
-	FILE * fp = fopen("Sample1/collection.txt", "r");
-	char * word = malloc(sizeof(char) * MAX_WORD_SIZE);
+	PriorityQueue wordList = newPriorityQueue(compare);
+	HashMap collection = newStringHashMap();
 	
-	while (fscanf(fp, "%s", word) != EOF) {
-		
-		addToQueue(urlQueue, word);
-		word = malloc(sizeof(char) * MAX_WORD_SIZE);
-	}
-	
-	PriorityQueue keys = newPriorityQueue(compare);
-	HashMap words = newStringKeyHashMap();
 	char * url;
-	
-	while(!isEmptyQueue(urlQueue)) {
-		url = nextFromQueue(urlQueue);
-		getWords(keys, words, url);
-	}
-	
+	char * word;
 	PriorityQueue urls;
 	
-	while(!isEmptyPriorityQueue(keys)) {
-		word = (char *) nextFromPriorityQueue(keys);
-		printf("%s", word);
+	Queue queue = getUrls();
+	
+	while(!emptyQueue(queue)) {
+		url = (char *) nextQueue(queue);
+		words = (BST) getUrlWords(url);
 		
-		urls = getFromHashMap(words, word);
+		while(!emptyBST(words)) {
+			word = (char *) maxBST(words);
+			
+			removeBST(words, word);
+			if(!existsPriorityQueue(wordList, word)) addPriorityQueue(wordList, word);
+			
+			if(existsHashMap(collection, word)) urls = (PriorityQueue) getHashMap(collection, word);
+			else urls = newPriorityQueue(compare);
+			
+			addPriorityQueue(urls, url);
+			addHashMap(collection, word, urls);
+		}
+	}
+	
+	FILE * file = fopen("invertedIndex.txt", "w");
+	
+	while(!emptyPriorityQueue(wordList)) {
+		word = (char *) nextPriorityQueue(wordList);
+		urls = (PriorityQueue) getHashMap(collection, word);
 		
-		if(!isEmptyPriorityQueue(urls)) printf(" ");
+		fprintf(file, "%s ", word);
 		
-		while(!isEmptyPriorityQueue(urls)) {
-			printf("%s", (char *) nextFromPriorityQueue(urls));
-			if(!isEmptyPriorityQueue(urls)) printf(" ");
+		while(!emptyPriorityQueue(urls)) {
+			url = (char *) nextPriorityQueue(urls);
+			fprintf(file, "%s", url);
+			if(!emptyPriorityQueue(urls)) fprintf(file, " ");
 		}
 		
-		printf("\n");
+		if(!emptyPriorityQueue(wordList)) fprintf(file, "\n");
 	}
+	
+	fclose(file);
 	
 	return 1;
-}
-
-static void getWords(PriorityQueue keys, HashMap words, char * url)
-{
-	char * filename = malloc(sizeof(char) * 100);
-	memset(filename, 0, 100);
-	
-	strcpy(filename, "Sample1/");
-	strcat(filename, url);
-	strcat(filename, ".txt");
-	
-	FILE * fp = fopen(filename, "r");
-	
-	BST seen = newBST(compare);
-	PriorityQueue urls;
-	int startFlag = 0;
-	int wordsFlag = 0;
-	char * word = malloc(sizeof(char) * MAX_WORD_SIZE);
-	
-	while (fscanf(fp, "%s", word) != EOF) {
-		
-		if(startFlag && !strcmp(word, "Section-2")) {
-			wordsFlag = 1;
-			continue;
-		}
-		else if(!strcmp(word, "#start")) startFlag = 1;
-		else startFlag = 0;
-		
-		if(!wordsFlag) continue;
-		if(!strcmp(word, "#end")) break;
-		
-		// To lowercase
-		int i;
-		for(i = 0; word[i]; i++) word[i] = tolower(word[i]);
-		
-		// Remove punctuation
-		if(word[strlen(word) - 1] == '.') word[strlen(word) - 1] = 0;
-		else if(word[strlen(word) - 1] == '?') word[strlen(word) - 1] = 0;
-		else if(word[strlen(word) - 1] == ';') word[strlen(word) - 1] = 0;
-		else if(word[strlen(word) - 1] == ',') word[strlen(word) - 1] = 0;
-		
-		if(isInBST(seen, word)) continue;
-		insertIntoBST(seen, word);
-		
-		if(!keyIsInHashMap(words, word)) {
-			addToPriorityQueue(keys, word);
-			putInHashMap(words, word, newPriorityQueue(compare));
-		}
-		
-		urls = getFromHashMap(words, word);
-		addToPriorityQueue(urls, url);
-		
-		word = malloc(sizeof(char) * MAX_WORD_SIZE);
-	}
 }
 
 static int compare(void * a, void * b)

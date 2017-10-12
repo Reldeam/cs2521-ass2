@@ -1,19 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 
 #include "BST.h"
 #include "Queue.h"
 
-struct BST {
-	struct Node * root;
-	int size;
-	int (* compare) (void * a, void * b);
-};
-
-struct Node {
+struct Node
+{
 	void * value;
-	int balance;
+	int depth;
 	struct Node * parent;
 	struct Node * left;
 	struct Node * right;
@@ -26,8 +20,7 @@ static Node newNode(void * value)
 	Node node = malloc(sizeof(struct Node));
 	
 	node->value = value;
-	node->balance = 0;
-	
+	node->depth = 0;
 	node->parent = NULL;
 	node->left = NULL;
 	node->right = NULL;
@@ -35,554 +28,398 @@ static Node newNode(void * value)
 	return node;
 }
 
-static void deleteTree(Node node)
+struct BST
 {
-	if(!node) return;
-	deleteTree(node->left);
-	deleteTree(node->right);
-	free(node);
-}
+	Node root;
+	int size;
+	int (*compare)(void * a, void *b);
+};
 
-static Node getMaxNode(Node node)
-{
-	if(!node) return node;
-	while(node->right) node = node->right;
-	return node;
-}
+static Node addValue(BST tree, Node node, void * value);
+static Node removeValue(BST tree, Node node, void * value);
+static void * getValue(BST tree, Node node, void * value);
+static int matchValue(BST tree, Node node, void * value);
+static Node rotateRight(Node node);
+static Node rotateLeft(Node node);
+static Node minNode(Node node);
+static Node maxNode(Node node);
+static void updateDepth(Node node);
+static void printNode(Node node, int indent);
+static Queue getQueueNode(Queue queue, Node node);
+static void freeNode(Node node);
 
-static Node getMinNode(Node node)
-{
-	if(!node) return node;
-	while(node->left) node = node->left;
-	return node;
-}
-
-static void printNode(Node node)
-{
-	if(!node) return;
-	
-	printf("%d", node->balance);
-	
-	if(node->left) {
-		printf(" L[");
-		printNode(node->left);
-		printf("]");
-	}
-	if(node->right) {
-		printf(" R[");
-		printNode(node->right);
-		printf("]");
-	}
-}
-
-static Node rotateLeft(Node X, Node Z) 
-{
-	/*
-	Node t23 = Z->left;
-	X->right = t23;
-	if(t23) t23->parent = X;
-	*/
-	
-	X->right = Z->left;
-	if(Z->left) Z->left->parent = X;
-	
-	Z->left = X;
-	X->parent = Z;
-	
-	if(Z->balance == 0) {
-		X->balance = 1;
-		Z->balance = -1;
-	}
-	else {
-		X->balance = 0;
-		Z->balance = 0;
-	}
-	
-	return Z;
-}
-
-static Node rotateRight(Node X, Node Z) 
-{
-	/*
-	Node t23 = Z->right;
-	X->left = t23;
-	if(t23) t23->parent = X;
-	*/
-	
-	X->left = Z->right;
-	if(Z->right) Z->right->parent = X;
-	
-	Z->right = X;
-	X->parent = Z;
-	
-	if(Z->balance == 0) {
-		X->balance = -1;
-		Z->balance = 1;
-	}
-	else {
-		X->balance = 0;
-		Z->balance = 0;
-	}
-	
-	return Z;
-}
-
-static Node rotateLeftRight(Node X, Node Z)
-{
-	Node Y = Z->right;
-	Node t3 = Y->left;
-	Z->right = t3;
-	if(t3) t3->parent = Z;
-	Y->left = Z;
-	Z->parent = Y;
-	
-	Node t2 = Y->right;
-	X->left = t2;
-	if(t2) t2->parent = X;
-	Y->right = X;
-	X->parent = Y;
- 
-     if(Y->balance > 0) {
-		X->balance = -1;
-		Z->balance = 0;
-     } 
-	 else if(Y->balance == 0) {
-		X->balance = 0;
-		Z->balance = 0;
-	} 
-	else {
-		X->balance = 0;
-		Z->balance = 1; 
-	}
-	Y->balance = 0;
- 
-	return Y;
-}
-
-static Node rotateRightLeft(Node X, Node Z)
-{
-	Node Y = Z->left;
-	Node t3 = Y->right;
-	Z->left = t3;
-	if (t3) t3->parent = Z;
-	Y->right = Z;
-	Z->parent = Y;
-	
-	Node t2 = Y->left;
-	X->right = t2;
-	if (t2) t2->parent = X;
-	Y->left = X;
-	X->parent = Y;
-	
-     if(Y->balance > 0) {
-		X->balance = -1;
-		Z->balance = 0;
-     } 
-	 else if(Y->balance == 0) {
-		X->balance = 0;
-		Z->balance = 0;
-	} 
-	else {
-		X->balance = 0;
-		Z->balance = 1;
-	}
-	Y->balance = 0;
- 
-	return Y; 
-}
-
-static void copyNode(Node original, Node copy, Node previous)
-{
-	if(!original) return;
-	
-	Node left = NULL;
-	Node right = NULL;
-	
-	if(original->left) left = newNode(original->left->value);
-	if(original->right) right = newNode(original->right->value);
-	
-	if(!copy) copy = newNode(original->value);
-	
-	copy->left = left;
-	copy->right = right;
-	
-	if(previous) copy->parent = previous;
-	
-	copyNode(original->left, copy->left, copy);
-	copyNode(original->right, copy->right, copy);
-}
-
-BST newBST(int (* compare) (void * a, void * b))
+BST newBST(int (*compare)(void * a, void * b))
 {
 	BST tree = malloc(sizeof(struct BST));
 	
 	tree->root = NULL;
 	tree->size = 0;
-	
 	tree->compare = compare;
 	
 	return tree;
 }
 
-BST getCopyOfBST(BST original)
+int addBST(BST tree, void * value)
 {
-	if(!original) return NULL;
+	if(!tree) return 0;
 	
-	BST copy = newBST(original->compare);
-	if(!original->root) return copy;
-	
-	copy->root = newNode(original->root->value);
-	
-	copyNode(original->root, copy->root, NULL);
-	copy->size = original->size;
-	
-	return copy;
-}
-
-void deleteBST(BST tree)
-{
-	assert(tree);
-	deleteTree(tree->root);
-	tree->compare = NULL;
-	free(tree);
-}
-
-void * getValueFromBST(BST tree, void * value)
-{
-	assert(tree);
-	
-	Node currentNode = tree->root;
-	
-	while(currentNode) {
-		if(tree->compare(currentNode->value, value) > 0) {
-			currentNode = currentNode->left;
-		}
-		else if(tree->compare(currentNode->value, value) < 0) {
-			currentNode = currentNode->right;
-		}
-		else break;
-	}
-	
-	if(currentNode) {
-		return currentNode->value;
-	}
-	
-	return NULL;
-}
-
-void * getMaxValueFromBST(BST tree)
-{
-	assert(tree);
-	
-	Node node = getMaxNode(tree->root);
-	if(node) return node->value;
-	else return NULL;
-}
-
-void * getMinValueFromBST(BST tree)
-{
-	assert(tree);
-	
-	Node node = getMinNode(tree->root);
-	if(node) return node->value;
-	else return NULL;
-}
-
-int insertIntoBST(BST tree, void * value)
-{
-	assert(tree);
-	
-	Node node = newNode(value);
-	
-	if(!tree->root) {
-		tree->root = node;
-		tree->size++;
-		return 1;
-	}
-	
-	Node currentNode = tree->root;
-	
-	while(1) {
-		if(tree->compare(currentNode->value, value) < 0) {
-			
-			if(currentNode->right) {
-				currentNode = currentNode->right;
-				continue;
-			}
-			else {
-				currentNode->right = node;
-				node->parent = currentNode;
-				break;
-			}
-		}
-		else {
-			if(currentNode->left) {
-				currentNode = currentNode->left;
-				continue;
-			}
-			else {
-				currentNode->left = node;
-				node->parent = currentNode;
-				break;
-			}
-		}
-	}
-	
-	Node previousNode = node;
-	Node nextNode, rotatedNode;
-	
-	while(currentNode) {
-		if(currentNode->right == previousNode) {
-			if(currentNode->balance > 0) {
-				nextNode = currentNode->parent;
-				if(previousNode->balance < 0) {
-					rotatedNode = rotateRightLeft(currentNode, previousNode);
-				}
-				else {
-					rotatedNode = rotateLeft(currentNode, previousNode);
-				}
-			}
-			else {
-				if(currentNode->balance < 0) {
-					currentNode->balance = 0;
-					break;
-				}
-				currentNode->balance = 1;
-				previousNode = currentNode;
-				currentNode = currentNode->parent;
-				continue;
-			}
-		}
-		else {
-			if(currentNode->balance < 0) {
-				nextNode = currentNode->parent;
-				if(previousNode->balance > 0) {
-					rotatedNode = rotateLeftRight(currentNode, previousNode);
-				}
-				else {
-					rotatedNode = rotateRight(currentNode, previousNode);
-				}
-			}
-			else {
-				if(currentNode->balance > 0) {
-					currentNode->balance = 0;
-					break;
-				}
-				currentNode->balance = -1;
-				previousNode = currentNode;
-				currentNode = currentNode->parent;
-				continue;
-			}
-		}
-		
-		rotatedNode->parent = nextNode;
-		
-		if(nextNode) {
-			if(currentNode == nextNode->left) {
-				nextNode->left = rotatedNode;
-			}
-			else {
-				nextNode->right = rotatedNode;
-			}
-			break;
-		}
-		else {
-			tree->root = rotatedNode;
-			break;
-		}
-		
-		previousNode = currentNode;
-		currentNode = currentNode->parent;
-	}
+	if(!tree->root) tree->root = newNode(value);
+	else tree->root = addValue(tree, tree->root, value);
 	
 	tree->size++;
+	
 	return 1;
 }
 
-int isEmptyBST(BST tree)
+void * removeBST(BST tree, void * value)
 {
-	assert(tree);
-	if(tree->size == 0) return 1;
-	return 0;
+	if(!tree) return NULL;
+	
+	void * result = removeValue(tree, tree->root, value);
+	
+	if(result) tree->size--;
+	
+	return result;
 }
 
-int isInBST(BST tree, void * value)
+void * getBST(BST tree, void * value)
 {
-	assert(tree);
-	
-	Node currentNode = tree->root;
-	
-	while(currentNode) {
-		if(tree->compare(currentNode->value, value) > 0) {
-			currentNode = currentNode->left;
-			continue;
-		}
-		else if(tree->compare(currentNode->value, value) < 0) {
-			currentNode = currentNode->right;
-			continue;
-		}
-		else return 1;
-	}
-	
-	return 0;
+	if(!tree) return NULL;
+	return getValue(tree, tree->root, value);
+}
+
+int existsBST(BST tree, void * value)
+{
+	if(!tree) return 0;
+	return matchValue(tree, tree->root, value);
 }
 
 void printBST(BST tree)
 {
-	printNode(tree->root);
-	printf("\n");
+	if(!tree || !tree->root) return;
+	
+	printNode(tree->root, 0);
 }
 
-void * removeFromBST(BST tree, void * value)
+int sizeBST(BST tree)
 {
-	assert(tree);
+	return tree->size;
+}
+
+int emptyBST(BST tree)
+{
+	return tree->size ? 0 : 1;
+}
+
+void * maxBST(BST tree)
+{
+	if(!tree) return NULL;
+	Node node = maxNode(tree->root);
+	if(!node) return NULL;
+	return node->value;
+}
+
+void * minBST(BST tree)
+{
+	if(!tree) return NULL;
+	Node node = minNode(tree->root);
+	if(!node) return NULL;
+	return node->value;
+}
+
+static void printNode(Node node, int indent)
+{
+	if(!node) return;
 	
-	Node currentNode = tree->root;
-	Node garbage = NULL;
+	int i;
+	printf("%d (%d)\n", (int) node->value, node->depth);
 	
-	while(currentNode) {
-		if(tree->compare(currentNode->value, value) > 0) {
-			currentNode = currentNode->left;
-			continue;
-		}
-		else if(tree->compare(currentNode->value, value) < 0) {
-			currentNode = currentNode->right;
-			continue;
-		}
-		else {
-			garbage = currentNode;
-			if(currentNode->left && currentNode->right) {
-				garbage = getMaxNode(currentNode);
-				currentNode->value = garbage->value;
-				
-				currentNode = garbage;
-			}
-			
-			if(currentNode->left) {
-				currentNode = currentNode->left;
-				break;
-			}
-			else if(currentNode->right) {
-				currentNode = currentNode->right;
-				break;
-			}
-			else {
-				currentNode = NULL;
-				break;
-			}
-		}
+	if(node->left) {
+		for(i = 0; i < indent; i++) printf(" ");
+		printf("L: ");
+		printNode(node->left, indent + 3);
 	}
 	
-	if(!garbage) return NULL;
-	
-	Node nextNode = garbage->parent;	
-	if(currentNode) currentNode->parent = nextNode;
-	
-	if(nextNode) {
-		if(nextNode->left == garbage) {
-			nextNode->left = currentNode;
-		}
+	if(node->right) {
+		for(i = 0; i < indent; i++) printf(" ");
+		printf("R: ");
+		printNode(node->right, indent + 3);
+	}
+}
+
+static Node addValue(BST tree, Node node, void * value)
+{
+	if(tree->compare(value, node->value) > 0) {
+		if(node->right) addValue(tree, node->right, value);
 		else {
-			nextNode->right = currentNode;
+			node->right = newNode(value);
+			node->right->parent = node;
+			
+			if(!node->left) {
+				node->depth++;
+				updateDepth(node->parent);
+			}
 		}
 	}
 	else {
-		tree->root = NULL;
-		value = garbage->value;
-		free(garbage);
-		tree->size = 0;
-		return value;
+		if(node->left) addValue(tree, node->left, value);
+		else {
+			node->left = newNode(value);
+			node->left->parent = node;
+			
+			if(!node->right) {
+				node->depth++;
+				updateDepth(node->parent);
+			}
+		}
 	}
 	
-	Node previousNode = currentNode;
-	currentNode = nextNode;
-	Node siblingNode;
-	int siblingBalance;
+	int leftDepth = 0;
+	int rightDepth = 0;
+	if(node->left) leftDepth = 1 + node->left->depth;
+	if(node->right) rightDepth = 1 + node->right->depth;
 	
-	while(currentNode) {
-		nextNode = currentNode->parent;
-		
-		if(!currentNode->left && !currentNode->right) {
-			currentNode->balance = 0;
-			previousNode = currentNode;
-			currentNode = currentNode->parent;
-			continue;
-		}
-		
-		if(currentNode->left == previousNode) {
-			if(currentNode->balance > 0) {
-				siblingNode = currentNode->right;
-				siblingBalance = siblingNode->balance;
-				if(siblingBalance < 0) {
-					previousNode = rotateRightLeft(currentNode, siblingNode);
-				}
-				else {
-					previousNode = rotateLeft(currentNode, siblingNode);
-				}
-			}
-			else {
-				if(currentNode->balance == 0) {
-					currentNode->balance = 1;
-					break;
-				}
-				previousNode = currentNode;
-				previousNode->balance = 0;
-				currentNode = currentNode->parent;
-				continue;
-			}
-		}
-		else {
-			if(currentNode->balance < 0) {
-				siblingNode = currentNode->left;
-				siblingBalance = siblingNode->balance;
-				if(siblingBalance > 0) {
-					previousNode = rotateLeftRight(currentNode, siblingNode);
-				}
-				else {
-					previousNode = rotateRight(currentNode, siblingNode);
-				}
-			}
-			else {
-				if(currentNode->balance == 0) {
-					currentNode->balance = -1;
-					break;
-				}
-				previousNode = currentNode;
-				previousNode->balance = 0;
-				currentNode = currentNode->parent;
-				continue;
-			}
-		}
-		
-		previousNode->parent = nextNode;
-		if(nextNode) {
-			if(nextNode->left == currentNode) {
-				nextNode->left = previousNode;
-			}
-			else {
-				nextNode->right = previousNode;
-			}
-			if(siblingBalance == 0) break;
-		}
-		else {
-			tree->root = previousNode;
-			previousNode = currentNode;
-			currentNode = currentNode->parent;
-			continue;
-		}
-		
-		previousNode = currentNode;
-		currentNode = currentNode->parent;
-	}
+	if(leftDepth - rightDepth > 1) node = rotateRight(node);
+	else if(rightDepth - leftDepth > 1) node = rotateLeft(node);
 	
-	value = garbage->value;
-	free(garbage);
-	tree->size--;
-	return value;
+	return node;
 }
 
-int sizeOfBST(BST tree)
+static Node removeValue(BST tree, Node node, void * value)
 {
-	assert(tree);
-	return tree->size;
+	if(!tree || !node) return NULL;
+	
+	void * result;
+	
+	if(tree->compare(value, node->value) > 0) {
+		result = removeValue(tree, node->right, value);
+	}
+	else if(tree->compare(value, node->value) < 0) {
+		result = removeValue(tree, node->left, value);
+	}
+	else {
+		result = node->value;
+		if(node->left && node->right) {
+			Node replacement = minNode(node->right);
+			node->value = replacement->value;
+			removeValue(tree, node->right, replacement->value);
+		}
+		else if(node->left) {
+			if(node->parent) {
+				if(node->parent->left == node)
+					node->parent->left = node->left;
+				else
+					node->parent->right = node->left;
+				node->left->parent = node->parent;
+				updateDepth(node->parent);
+			}
+			else {
+				tree->root = node->left;
+				node->left->parent = NULL;
+			}
+			
+			free(node);
+			return result;
+		}
+		else if(node->right) {
+			if(node->parent) {
+				if(node->parent->left == node)
+					node->parent->left = node->right;
+				else
+					node->parent->right = node->right;
+				node->right->parent = node->parent;
+				updateDepth(node->parent);
+			}
+			else {
+				tree->root = node->right;
+				node->right->parent = NULL;
+			}
+			
+			free(node);
+			return result;
+		}
+		else {
+			if(node->parent) {
+				if(node->parent->left == node) 
+					node->parent->left = NULL;
+				else 
+					node->parent->right = NULL;
+				updateDepth(node->parent);
+			}
+			else {
+				tree->root = NULL;
+			}
+			
+			free(node);
+			return result;
+		}
+	}
+	
+	int leftDepth = 0;
+	int rightDepth = 0;
+	if(node->left) leftDepth = 1 + node->left->depth;
+	if(node->right) rightDepth = 1 + node->right->depth;
+	
+	if(leftDepth - rightDepth > 1) node = rotateRight(node);
+	else if(rightDepth - leftDepth > 1) node = rotateLeft(node);
+	
+	if(node->parent == NULL) tree->root = node;
+	
+	return result;
+}
+
+void * getValue(BST tree, Node node, void * value)
+{
+	if(!tree || !node) return NULL;
+	
+	if(tree->compare(value, node->value) > 0) {
+		return getValue(tree, node->right, value);
+	}
+	else if(tree->compare(value, node->value) < 0) {
+		return getValue(tree, node->left, value);
+	}
+	
+	return node->value;
+}
+
+static int matchValue(BST tree, Node node, void * value)
+{
+	if(!tree || !node) return 0;
+	
+	if(tree->compare(value, node->value) > 0) {
+		return matchValue(tree, node->right, value);
+	}
+	else if(tree->compare(value, node->value) < 0) {
+		return matchValue(tree, node->left, value);
+	}
+	
+	return 1;
+}
+
+Queue getQueueBST(BST tree)
+{
+    Queue queue = newQueue();
+    if(!tree || !tree->root) return queue;
+    return getQueueNode(queue, tree->root);
+}
+
+static Queue getQueueNode(Queue queue, Node node)
+{
+    if(!node) return queue;
+    addQueue(queue, node->value);
+    queue = getQueueNode(queue, node->left);
+    queue = getQueueNode(queue, node->right);
+    return queue;
+}
+
+void freeBST(BST tree)
+{
+	if(!tree) return;
+	freeNode(tree->root);
+	free(tree);
+}
+
+static void freeNode(Node node)
+{
+	if(!node) return;
+	if(node->left) freeNode(node->left);
+	if(node->right) freeNode(node->right);
+	free(node);
+}
+
+static Node rotateRight(Node node)
+{
+	if(!node || !node->left) return node;
+	
+	// Double rotation
+	if(node->left->right && !node->left->left) rotateRight(node->left);
+	
+	Node pivot = node->left;
+	
+	node->left = pivot->right;
+	if(pivot->right) pivot->right->parent = node;
+	
+	pivot->right = node;
+	
+	pivot->parent = node->parent;
+	
+	if(node->parent) {
+		if(node->parent->left == node) node->parent->left = pivot;
+		else node->parent->right = pivot;
+	}
+	
+	node->parent = pivot;
+	
+	updateDepth(node);
+	
+	return pivot;
+}
+
+static Node rotateLeft(Node node)
+{
+	if(!node || !node->right) return node;
+	
+	// Double rotation
+	if(node->right->left && !node->right->right) rotateLeft(node->right);
+	
+	Node pivot = node->right;
+	
+	node->right = pivot->left;
+	if(pivot->left) pivot->left->parent = node;
+	
+	pivot->left = node;
+	
+	pivot->parent = node->parent;
+	
+	if(node->parent) {
+		if(node->parent->left == node) node->parent->left = pivot;
+		else node->parent->right = pivot;
+	}
+	
+	node->parent = pivot;
+	
+	updateDepth(node);
+	
+	return pivot;
+}
+
+static Node minNode(Node node)
+{
+	if(!node) return NULL;
+	
+	if(!node->left) return node;
+	return minNode(node->left);
+}
+
+static Node maxNode(Node node)
+{
+	if(!node) return NULL;
+	
+	if(!node->right) return node;
+	return maxNode(node->right);
+}
+
+static void updateDepth(Node node)
+{
+	if(!node) return;
+	
+	if(!node->left && !node->right) {
+		if(node->depth != 0) {
+			node->depth = 0;
+			updateDepth(node->parent);
+		}
+		return;
+	}
+	
+	int depth = 0;
+	
+	if(node->left) depth = node->left->depth;
+	if(node->right && node->right->depth > depth) depth = node->right->depth;
+	
+	depth++;
+
+	if(node->depth != depth) {
+		node->depth = depth;
+		updateDepth(node->parent);
+	}
 }

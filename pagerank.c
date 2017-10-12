@@ -4,211 +4,225 @@
 #include <assert.h>
 #include <math.h>
 
+#include "collection.h"
+#include "util/Queue.h"
 #include "util/BST.h"
 #include "util/HashMap.h"
 #include "util/LinkedList.h"
 
-#define MAX_STRING 8
-#define URL_PATH "Sample1/"
-#define COLLECTION_FILENAME "collection.txt"
-
-//#include "util/PriorityQueue.h"
-
-struct URLSet {
-    HashMap incoming;
-    HashMap outgoing;
+struct UrlGraph {
+	char * name;
+	BST outgoing;
+	BST incoming;
+    
     double pagerank;
     double newPagerank;
-	double wInFactor;
-	double wOutFactor;
+    
+    double wIn;
+    double wOut;
 };
 
-typedef struct URLSet * URLSet;
-
-static URLSet newURLSet()
-{
-    URLSet set = malloc(sizeof(struct URLSet));
-    set->incoming = newStringKeyHashMap();
-    set->outgoing = newStringKeyHashMap();
-    set->pagerank = 0;
-    set->newPagerank = 0;    
-	set->wInFactor = 0;
-	set->wOutFactor = 0;
-    return set;
-}
+typedef struct UrlGraph * UrlGraph;
+static UrlGraph newUrlGraph(char * name);
+static int compareUrlGraph(void * a, void * b);
 
 int main (int argc, char *argv[])
 {
-	assert(argc == 4);
-	
-	double d = atof(argv[1]);
-	double diffPR = atof(argv[2]);
-	int maxIterations = atoi(argv[3]);
-	
-	printf("Max iterations: %d\n", maxIterations);
-	
-	HashMap sets = newStringKeyHashMap();
-	URLSet set;
-	
-	char * url = malloc(sizeof(char) * MAX_STRING);
-	
-	FILE * fp = fopen(URL_PATH COLLECTION_FILENAME, "r");
-	
-	while (fscanf(fp, "%s", url) != EOF) {
-		set = newURLSet();
-		putInHashMap(sets, url, set);
-		url = malloc(sizeof(char) * MAX_STRING);
-	}
-	
-	
-	char ** urls = malloc(sizeof(char) * sizeOfHashMap(sets));
-    getKeySetOfHashMap(sets, (void **) urls);
-	
-	char * filename = malloc(sizeof(char) * 50);
-	char * outgoingURL = malloc(sizeof(char) * 20);
-	URLSet outgoingSet, incomingSet;
-	
-	int i, j;
-	
-	// Fill sets
-	for(i = 0; i < sizeOfHashMap(sets); i++) {
-		
-		url = urls[i];
-		set = (URLSet) getFromHashMap(sets, url);
-		
-		strcpy(filename, URL_PATH);
-        strcat(filename, url);
-        strcat(filename, ".txt");
-		
-		fp = fopen(filename, "r");
+	Queue urlNames = getUrls();
+    QueueIterator urlIterator = newQueueIterator(urlNames);
+    
+    char * urlName;
+    
+    HashMap urls = newStringHashMap();
+    BST outgoingLinks;
+    char * outgoingName;
+    
+    UrlGraph url;
+    UrlGraph outgoingUrl;
+    UrlGraph incomingUrl;
+    
+    // Create url graphs and populate incoming and outgoing urls
+    while(hasNextQueueIterator(urlIterator)) {
+        urlName = (char *) nextQueueIterator(urlIterator);
         
-        while (fscanf(fp, "%s", outgoingURL) != EOF) {
-            if (strstr(outgoingURL, "#end") != NULL) break;
-            if (strstr(outgoingURL, "url") == NULL) continue;
-			
-			outgoingSet = getFromHashMap(sets, outgoingURL);
-            putInHashMap(set->outgoing, outgoingURL, outgoingSet);
-            putInHashMap(outgoingSet->incoming, url, set);
-			
-			outgoingURL = malloc(sizeof(char) * 20);
+        if(existsHashMap(urls, urlName)) url = getHashMap(urls, urlName);
+        else {
+            url = newUrlGraph(urlName);
+            addHashMap(urls, urlName, url);
         }
-		
-		set->pagerank = 1.0 / sizeOfHashMap(sets);
-		//set->newPagerank = 1.0 / sizeOfHashMap(sets); 
-		
-        fclose(fp);
-	}
-	
-	for(i = 0; i < sizeOfHashMap(sets); i++) {
-		url = urls[i];
-		set = (URLSet) getFromHashMap(sets, url);
-		printf("Page rank of %s: %f\n", url, set->pagerank);
-	}
-	
-	char ** outgoingUrls;
-	char ** incomingUrls;
-	
-	// Calculate wInFactor and wOutFactor
-	for(i = 0; i < sizeOfHashMap(sets); i++) {
-		
-		url = urls[i];
-		set = (URLSet) getFromHashMap(sets, url);
-		
-		outgoingUrls = malloc(sizeof(char) * sizeOfHashMap(set->outgoing));
-		getKeySetOfHashMap(set->outgoing, (void **) outgoingUrls);
-		
-		for(j = 0; j < sizeOfHashMap(set->outgoing); j++) {
-			outgoingSet = getFromHashMap(set->outgoing, outgoingUrls[j]);
-			
-			
-			set->wInFactor += sizeOfHashMap(outgoingSet->incoming);
-			
-			set->wOutFactor += sizeOfHashMap(outgoingSet->outgoing);
-			if(!sizeOfHashMap(outgoingSet->outgoing)) set->wOutFactor += 0.5;
-		}
-		
-		if(set->wInFactor) set->wInFactor = 1.0 / set->wInFactor;
-		
-		if(!set->wOutFactor) set->wOutFactor = 0.5;
-		set->wOutFactor = 1.0 / set->wOutFactor;
-		
-		printf("wInFactor for %s: %f\n", url, set->wInFactor);
-		printf("wOutFactor for %s: %f\n", url, set->wOutFactor);
-		
-		//if(set->wInFactor > 0) set->wInFactor = 1.0 / set->wInFactor;
-		//if(set->wOutFactor > 0) set->wOutFactor = 1.0 / set->wOutFactor;
-		
-		//free(outgoingUrls);
-	}
-	
-	double dampShift = (1 - d) / sizeOfHashMap(sets);
-	//double dampShift = (1 - d);
-	
-	printf("damp shift: %f\n", dampShift);
-	
-	double diff = diffPR;
-	int iteration = 0;
-	double wIn, wOut, sum;
-	
-	// Weighted Page Rank
-	while(iteration < maxIterations && diff >= diffPR) {
-		
-		for(i = 0; i < sizeOfHashMap(sets); i++) {
-			
-			url = urls[i];
-			set = (URLSet) getFromHashMap(sets, url);
-			
-			incomingUrls = malloc(sizeof(char) * sizeOfHashMap(set->incoming));
-			getKeySetOfHashMap(set->incoming, (void **) incomingUrls);
-			
-			sum = 0;
-			wIn = 0;
-			wOut = 0;
-			
-			for(j = 0; j < sizeOfHashMap(set->incoming); j++) {
-				
-				incomingSet = getFromHashMap(set->incoming, incomingUrls[j]);
-				
-				wIn = sizeOfHashMap(set->incoming) * incomingSet->wInFactor;
-				
-				if(!sizeOfHashMap(set->outgoing)) wOut = 0.5;
-				else wOut = sizeOfHashMap(set->outgoing);
-				
-				wOut *= incomingSet->wOutFactor;
-				
-				printf("wIn: %f, wOut: %f\n", wIn, wOut);
-				
-				sum += incomingSet->pagerank * wIn * wOut;
-			}
-			
-			printf("Sum: %f\n", sum);
-			
-			set->newPagerank = dampShift + (d * sum);
-			
-			printf("New pagerank for %s: %f\n", url, set->newPagerank);
-			
-			//free(incomingUrls);
-		}
-		
-		diff = 0;
-		
-		for(i = 0; i < sizeOfHashMap(sets); i++) {
-			url = urls[i];
-			set = (URLSet) getFromHashMap(sets, url);
-			diff += fabs(set->newPagerank - set->pagerank);
-			set->pagerank = set->newPagerank;
-		}
-		
-		printf("Difference: %f\n", diff);
-		
-		iteration++;
-	}
-	
-	for(i = 0; i < sizeOfHashMap(sets); i++) {
-		url = urls[i];
-		set = (URLSet) getFromHashMap(sets, url);
-		printf("Page rank of %s: %f\n", url, set->pagerank);
-	}
-	
+        
+        outgoingLinks = getUrlLinks(urlName);
+        
+        while(!emptyBST(outgoingLinks)) {
+            outgoingName = removeBST(outgoingLinks, maxBST(outgoingLinks));
+            
+            if(!existsHashMap(urls, outgoingName)) {
+                addHashMap(urls, outgoingName, newUrlGraph(outgoingName));
+            }
+            
+            outgoingUrl = (UrlGraph) getHashMap(urls, outgoingName);
+            
+            if(url != outgoingUrl && !existsBST(url->outgoing, outgoingUrl))
+                addBST(url->outgoing, outgoingUrl);
+            
+            if(url != outgoingUrl && !existsBST(outgoingUrl->incoming, url))
+                addBST(outgoingUrl->incoming, url);
+        }
+    }
+    
+    
+    
+    
+    
+    resetQueueIterator(urlIterator);
+    while(hasNextQueueIterator(urlIterator)) {
+        urlName = (char *) nextQueueIterator(urlIterator);
+        url = getHashMap(urls, urlName);
+        printf("%s: Outgoing %d, Incoming %d\n", urlName, sizeBST(url->outgoing), sizeBST(url->incoming));
+    }
+    
+    
+    
+    
+    
+    
+    resetQueueIterator(urlIterator);
+    
+    Queue outgoingUrls;
+    Queue incomingUrls;
+    
+    // Set pagerank to 1/N and wIn and wOut
+    while(hasNextQueueIterator(urlIterator)) {
+        urlName = (char *) nextQueueIterator(urlIterator);
+        
+        url = getHashMap(urls, urlName);
+        url->pagerank = (double) 1 / sizeHashMap(urls);
+        url->newPagerank = url->pagerank;
+        
+        outgoingUrls = getQueueBST(url->outgoing);
+        
+        while(!emptyQueue(outgoingUrls)) {
+            UrlGraph outgoingUrl = nextQueue(outgoingUrls);
+            url->wIn += sizeBST(outgoingUrl->incoming);
+            url->wOut += sizeBST(outgoingUrl->outgoing);
+            if(!sizeBST(outgoingUrl->outgoing)) url->wOut += 0.5;
+        }
+        
+        // ????? 
+        //if(!url->wOut) url->wOut = 0.5;
+    }
+    
+    
+    
+    
+    double wIn;
+    double wOut;
+    
+    resetQueueIterator(urlIterator);
+    while(hasNextQueueIterator(urlIterator)) {
+        urlName = (char *) nextQueueIterator(urlIterator);
+        url = getHashMap(urls, urlName);
+        
+        incomingUrls = getQueueBST(url->incoming);
+        
+        while(!emptyQueue(incomingUrls)) {
+            incomingUrl = nextQueue(incomingUrls);
+            wIn = (double) sizeBST(url->incoming) / incomingUrl->wIn;
+            
+            if(!sizeBST(url->outgoing)) wOut = (double) 0.5 / incomingUrl->wOut;
+            else wOut = (double) sizeBST(url->outgoing) / incomingUrl->wOut;
+            
+            printf("%s -> %s: IN %f, OUT %f\n", incomingUrl->name, urlName, wIn, wOut);
+            printf("%f, %f\n", incomingUrl->wIn, incomingUrl->wOut);
+        }
+        
+    }
+    
+    
+    
+    
+    int t = 0;
+    
+    int maxIteration = 1000;
+    double diffPR = 0.00001;
+    double d = 0.85;
+    
+    
+    double sum;
+    
+    double diff = diffPR;
+    
+    while(t < maxIteration && diff >= diffPR) {
+        t++;
+        diff = 0;
+        resetQueueIterator(urlIterator);
+        while(hasNextQueueIterator(urlIterator)) {
+            url = getHashMap(urls, nextQueueIterator(urlIterator));
+            incomingUrls = getQueueBST(url->incoming);
+            
+            url->pagerank = url->newPagerank;
+            
+            sum = 0;
+            
+            while(!emptyQueue(incomingUrls)) {
+                incomingUrl = nextQueue(incomingUrls);
+                wIn = (double) sizeBST(url->incoming) / incomingUrl->wIn;
+                //wOut = (double) sizeBST(url->outgoing) / incomingUrl->wOut;
+                if(!sizeBST(url->outgoing)) wOut = (double) 0.5 / incomingUrl->wOut;
+                else wOut = (double) sizeBST(url->outgoing) / incomingUrl->wOut;
+                sum += incomingUrl->pagerank * wIn * wOut;
+            }
+            
+            url->newPagerank = ((1-d)  / sizeHashMap(urls)) + d * sum;
+            
+            diff += fabs(url->newPagerank - url->pagerank);
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    resetQueueIterator(urlIterator);
+    
+    double total = 0;
+    
+    // Set pagerank to 1/N and wIn and wOut
+    while(hasNextQueueIterator(urlIterator)) {
+        urlName = (char *) nextQueueIterator(urlIterator);
+        url = getHashMap(urls, urlName);
+        printf("%s: %f\n", urlName, url->pagerank);
+        total += url->pagerank;
+    }
+    
+    printf("TOTAL: %.7f\n", total);
+    
     return 0;
+}
+
+static UrlGraph newUrlGraph(char * name)
+{
+	UrlGraph graph = malloc(sizeof(struct UrlGraph));
+	graph->name = name;
+	graph->outgoing = newBST(compareUrlGraph);
+	graph->incoming = newBST(compareUrlGraph);
+    
+    graph->pagerank = 0;
+    graph->newPagerank = 0;
+    
+    graph->wIn = 0;
+    graph->wOut = 0;
+    
+    return graph;
+}
+
+static int compareUrlGraph(void * a, void * b)
+{
+    UrlGraph A = (UrlGraph) a;
+    UrlGraph B = (UrlGraph) b;
+    
+    return(strcmp(A->name, B->name));
 }

@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <assert.h>
 
 #include "Queue.h"
 
@@ -10,13 +9,11 @@ struct Node {
 
 typedef struct Node * Node;
 
-static Node newNode(void * value)
+Node newNode(void * value)
 {
 	Node node = malloc(sizeof(struct Node));
-	
 	node->value = value;
 	node->next = NULL;
-	
 	return node;
 }
 
@@ -29,77 +26,98 @@ struct Queue {
 Queue newQueue()
 {
 	Queue queue = malloc(sizeof(struct Queue));
-	
 	queue->head = NULL;
 	queue->tail = NULL;
 	queue->size = 0;
-	
 	return queue;
 }
 
-void addToQueue(Queue queue, void * value)
+int addQueue(Queue queue, void * value)
 {
-	assert(queue);
+	if(!queue) return 0;
 	
-	Node node = newNode(value);
-	
-	if(!queue->head) queue->head = node;
-	else queue->tail->next = node;
-	queue->tail = node;
+	if(!queue->head) {
+		queue->head = newNode(value);
+		queue->tail = queue->head;
+	}
+	else {
+		queue->tail->next = newNode(value);
+		queue->tail = queue->tail->next;
+	}
 	
 	queue->size++;
-}
-
-void addToFrontOfQueue(Queue queue, void * value)
-{
-	assert(queue);
-	
-	Node node = newNode(value);
-	
-	if(!queue->head) queue->tail = node;
-	
-	node->next = queue->head;
-	queue->head = node;
-	
-	queue->size++;
-}
-
-void * nextFromQueue(Queue queue)
-{
-	assert(queue);
-	
-	if(!queue->head) return NULL;
-		
-	Node node = queue->head;
-	void * value = node->value;
-		
-	queue->head = queue->head->next;
-	queue->size--;
-		
-	free(node);
-		
-	return value;
-}
-
-void * peakAtQueue(Queue queue)
-{
-	assert(queue);
-	
-	if(!queue->head) return NULL;
-	return queue->head->value;
-}
-
-int isEmptyQueue(Queue queue)
-{
-	assert(queue);
-	
-	if(queue->size > 0) return 0;
 	return 1;
 }
 
-int sizeOfQueue(Queue queue)
+void * nextQueue(Queue queue)
 {
-	assert(queue);
-	
+	if(!queue || !queue->head) return NULL;
+		
+	Node head = queue->head;
+	void * value = head->value;
+		
+	queue->head = head->next;
+	if(!queue->head) queue->tail = NULL;
+		
+	free(head);
+	queue->size--;
+	return value;
+}
+
+
+void * peakQueue(Queue queue)
+{
+	if(!queue || !queue->head) return NULL;
+	return queue->head->value;
+}
+
+int emptyQueue(Queue queue)
+{
+	return queue->size ? 0 : 1;
+}
+
+int sizeQueue(Queue queue)
+{
 	return queue->size;
 }
+
+struct QueueIterator {
+    Queue queue;
+    Node pointer;
+};
+
+QueueIterator newQueueIterator(Queue queue)
+{
+    QueueIterator iterator = malloc(sizeof(struct QueueIterator));
+    
+    iterator->queue = queue;
+    iterator->pointer = queue->head;
+    
+    return iterator;
+}
+
+int hasNextQueueIterator(QueueIterator iterator)
+{
+    if(!iterator || !iterator->pointer) return 0;
+    return(iterator->pointer ? 1 : 0);
+}
+
+void * nextQueueIterator(QueueIterator iterator)
+{
+    if(!iterator || !iterator->pointer) return NULL;
+    Node result = iterator->pointer;
+    if(iterator->pointer) iterator->pointer = iterator->pointer->next;
+    return result->value;
+}
+
+void * peakQueueIterator(QueueIterator iterator)
+{
+    if(!iterator || !iterator->pointer) return NULL;
+    return iterator->pointer->value;
+}
+
+void resetQueueIterator(QueueIterator iterator)
+{
+    iterator->pointer = iterator->queue->head;
+}
+
