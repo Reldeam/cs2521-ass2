@@ -1,1 +1,4 @@
-//Part 1: C
+int main (int argc, char *argv[])
+{
+    return 1;
+}

@@ -70,22 +70,6 @@ int main (int argc, char *argv[])
         }
     }
     
-    
-    
-    
-    
-    resetQueueIterator(urlIterator);
-    while(hasNextQueueIterator(urlIterator)) {
-        urlName = (char *) nextQueueIterator(urlIterator);
-        url = getHashMap(urls, urlName);
-        printf("%s: Outgoing %d, Incoming %d\n", urlName, sizeBST(url->outgoing), sizeBST(url->incoming));
-    }
-    
-    
-    
-    
-    
-    
     resetQueueIterator(urlIterator);
     
     Queue outgoingUrls;
@@ -107,39 +91,9 @@ int main (int argc, char *argv[])
             url->wOut += sizeBST(outgoingUrl->outgoing);
             if(!sizeBST(outgoingUrl->outgoing)) url->wOut += 0.5;
         }
-        
-        // ????? 
-        //if(!url->wOut) url->wOut = 0.5;
     }
-    
-    
-    
-    
-    double wIn;
-    double wOut;
     
     resetQueueIterator(urlIterator);
-    while(hasNextQueueIterator(urlIterator)) {
-        urlName = (char *) nextQueueIterator(urlIterator);
-        url = getHashMap(urls, urlName);
-        
-        incomingUrls = getQueueBST(url->incoming);
-        
-        while(!emptyQueue(incomingUrls)) {
-            incomingUrl = nextQueue(incomingUrls);
-            wIn = (double) sizeBST(url->incoming) / incomingUrl->wIn;
-            
-            if(!sizeBST(url->outgoing)) wOut = (double) 0.5 / incomingUrl->wOut;
-            else wOut = (double) sizeBST(url->outgoing) / incomingUrl->wOut;
-            
-            printf("%s -> %s: IN %f, OUT %f\n", incomingUrl->name, urlName, wIn, wOut);
-            printf("%f, %f\n", incomingUrl->wIn, incomingUrl->wOut);
-        }
-        
-    }
-    
-    
-    
     
     int t = 0;
     
@@ -147,15 +101,19 @@ int main (int argc, char *argv[])
     double diffPR = 0.00001;
     double d = 0.85;
     
-    
     double sum;
+    double wIn;
+    double wOut;
     
     double diff = diffPR;
     
+    // Ajust pagerank with the algorithm thingy
     while(t < maxIteration && diff >= diffPR) {
+        
         t++;
         diff = 0;
         resetQueueIterator(urlIterator);
+        
         while(hasNextQueueIterator(urlIterator)) {
             url = getHashMap(urls, nextQueueIterator(urlIterator));
             incomingUrls = getQueueBST(url->incoming);
@@ -174,31 +132,22 @@ int main (int argc, char *argv[])
             }
             
             url->newPagerank = ((1-d)  / sizeHashMap(urls)) + d * sum;
-            
             diff += fabs(url->newPagerank - url->pagerank);
         }
     }
     
-    
-    
-    
-    
-    
-    
-    
     resetQueueIterator(urlIterator);
     
-    double total = 0;
+    FILE * file = fopen("pagerankList.txt", "w");
     
     // Set pagerank to 1/N and wIn and wOut
     while(hasNextQueueIterator(urlIterator)) {
         urlName = (char *) nextQueueIterator(urlIterator);
         url = getHashMap(urls, urlName);
-        printf("%s: %f\n", urlName, url->pagerank);
-        total += url->pagerank;
+        fprintf(file, "%s, %d, %.7f\n", urlName, sizeBST(url->outgoing), url->pagerank);
     }
     
-    printf("TOTAL: %.7f\n", total);
+    fclose(file);
     
     return 0;
 }
