@@ -1,3 +1,6 @@
+#ifndef PRIORITY_QUEUE_H
+#define PRIORITY_QUEUE_H
+
 #include "BST.h"
 
 typedef BST PriorityQueue;
@@ -15,3 +18,5 @@ int emptyPriorityQueue(PriorityQueue queue);
 int sizePriorityQueue(PriorityQueue queue);
 
 void freePriorityQueue(PriorityQueue queue);
+
+#endif

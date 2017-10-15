@@ -5,22 +5,19 @@
 #include <assert.h>
 #include <math.h>
 
-#include "util/Queue.h"
-#include "collection.h"
 
-#include "util/HashMap.h"
+#include "util/PriorityQueue.h"
+
+int stringCompare(void * a, void * b)
+{
+    return strcmp((char *) a, (char *) b);
+}
 
 int main()
 {
-	HashMap map = newStringHashMap();
+	PriorityQueue queue = newPriorityQueue(stringCompare);
 	
-	addHashMap(map, "A", "A");
-	addHashMap(map, "B", "B");
-	addHashMap(map, "C", "B");
-	addHashMap(map, "D", "B");
-	addHashMap(map, "E", "B");
-	
-	printf("%s\n", (char *) getHashMap(map, "C"));
-	
+    addPriorityQueue(queue, "a");
+    
 	return 1;
 }
