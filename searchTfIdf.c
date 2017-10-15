@@ -1,4 +1,4 @@
-//COMP2521 - Assignment 2 - Part 2
+///COMP2521 - Assignment 2 - Part 2
 //To Do:
     //Edit path for reading "inverted.txt" etc.
 
@@ -87,7 +87,7 @@ int main (int argc, char *argv[])
     memset(idfTfArray,0,sizeof(idfTfArray)); 
     
     while (i < argc) {
-        fp = fopen(URL_PATH "invertedIndex.txt", "r");
+        fp = fopen("invertedIndex.txt", "r");
         while (fscanf(fp, "%s", urls2) != EOF) { 
             //If breaker == 1, count urls on line until next string that doesn't contain url
             if (breaker == 1) {
@@ -114,6 +114,7 @@ int main (int argc, char *argv[])
         }
         //idf calculation for each word - only calculate if word is actually found, otherwise 0
         if (count > 0) {
+            printf("Get here???\n");
             idfTfArray[(int)totalNumberURLS][i+2] = log10(totalNumberURLS/count);        
         }
         i++;
@@ -213,22 +214,18 @@ int main (int argc, char *argv[])
 
         printf("\n");
     }    
-    
+   
     PriorityQueue q = newPriorityQueue(compare);
     
     Node node;    
     
     for (i = 0; i < totalNumberURLS; i++) {
-//        printf("%s %f\n", URLsArray[i], idfTfArray[i][3]);
         addPriorityQueue(q,newNode(URLsArray[i],URLsArray[i],idfTfArray[i]));
     }
-   
-    i = 0;
     
     while (!emptyPriorityQueue(q)) {
         node = (Node) nextPriorityQueue(q);
-        printf("url: %s #words: %f TfIdf: %f i == %d \n", node->urlName, node->values[2], node->values[1], i);
-        i++;        
+        printf("%s %f \n", node->urlName, node->values[1]);
     }
     
     return 0;
