@@ -8,7 +8,7 @@
 #include "util/HashMap.h"
 
 #define MAX_WORD_SIZE 25
-#define LOCATION "Sample2"
+#define LOCATION "Sample1"
 #define COLLECTION "collection.txt"
 
 static int compare(void * a, void * b)

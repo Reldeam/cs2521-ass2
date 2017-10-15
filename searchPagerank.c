@@ -42,7 +42,13 @@ int main (int argc, char * argv[])
     while (fscanf(file, "%s%c", word, &deliminator) != EOF) {
        
         if(!found) {
+            // Search word does not exist in index of words.
+            if(strcmp((char *) peakPriorityQueue(words), word) < 0) {
+                nextPriorityQueue(words);
+                if(emptyPriorityQueue(words)) break;
+            }
             if(!strcmp((char *) peakPriorityQueue(words), word)) found = 1;
+            else while(deliminator != '\n') fscanf(file, "%s%c", word, &deliminator);
             continue;
         }
         
@@ -74,8 +80,8 @@ int main (int argc, char * argv[])
     
     while(!emptyPriorityQueue(matches)) {
         match = nextPriorityQueue(matches);
-        
-        printf("%s %d %f\n", match->url, match->count, match->pagerank);
+        printf("%s\n", match->url);
+        //printf("%s %d %f\n", match->url, match->count, match->pagerank);
     }
     
     return 1;
