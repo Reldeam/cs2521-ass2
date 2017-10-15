@@ -114,7 +114,6 @@ int main (int argc, char *argv[])
         }
         //idf calculation for each word - only calculate if word is actually found, otherwise 0
         if (count > 0) {
-            printf("Get here???\n");
             idfTfArray[(int)totalNumberURLS][i+2] = log10(totalNumberURLS/count);        
         }
         i++;
@@ -185,7 +184,7 @@ int main (int argc, char *argv[])
     }      
       
 //------------PRINTING OUT RESULTS-------------//        
-
+/*
     printf("URLS               |");
     printf("%s|","#words");
     
@@ -214,7 +213,7 @@ int main (int argc, char *argv[])
 
         printf("\n");
     }    
-   
+*/   
     PriorityQueue q = newPriorityQueue(compare);
     
     Node node;    
@@ -225,7 +224,10 @@ int main (int argc, char *argv[])
     
     while (!emptyPriorityQueue(q)) {
         node = (Node) nextPriorityQueue(q);
-        printf("%s %f \n", node->urlName, node->values[1]);
+        if (node->values[1] == 0) {
+            break;
+        }
+        printf("%s %f \n", node->urlName, node->values[1]);                
     }
     
     return 0;

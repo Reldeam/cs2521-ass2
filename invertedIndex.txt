@@ -44,15 +44,15 @@ robotics url32
 seasonal url11 url21 url22
 small url23
 subject url11
-sun url22 url23 url31
+sun url22 url23 url31 url32
 surface url11 url21
 telescopic url11
 that url11
 the url11
 to url11 url21
 vegetation url11 url21
-volcano url23 url31 url34
+volcano url23 url31 url32 url34
 waves url23
-weather url31 url34
+weather url31 url32 url34
 were url11 url21
 winds url22 url23
