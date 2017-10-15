@@ -216,17 +216,19 @@ int main (int argc, char *argv[])
     
     PriorityQueue q = newPriorityQueue(compare);
     
-    for (i = 0; i < totalNumberURLS; i++) {
-        printf("%s %f\n", URLsArray[i], idfTfArray[i][3]);
-        addPriorityQueue(q,newNode(URLsArray[i],URLsArray[i],idfTfArray[i]));  
-        //printPriorityQueue(q);  
-    }
+    Node node;    
     
-    Node node;
+    for (i = 0; i < totalNumberURLS; i++) {
+//        printf("%s %f\n", URLsArray[i], idfTfArray[i][3]);
+        addPriorityQueue(q,newNode(URLsArray[i],URLsArray[i],idfTfArray[i]));
+    }
+   
+    i = 0;
     
     while (!emptyPriorityQueue(q)) {
         node = (Node) nextPriorityQueue(q);
-        printf("%s %f\n", node->urlName, node->values[3]);
+        printf("url: %s #words: %f TfIdf: %f i == %d \n", node->urlName, node->values[2], node->values[1], i);
+        i++;        
     }
     
     return 0;
@@ -241,7 +243,6 @@ void reformatString(char *src, char *dst) {
             *dst++ = tolower((unsigned char) *src);
     *dst = 0;
 }
-
 
 //Compare function that has a two tiered compared
 //      1. Compares # of unique search terms that appear in url Node->values[2]
