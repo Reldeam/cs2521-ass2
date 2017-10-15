@@ -254,10 +254,12 @@ static int compare(void * a, void * b) {
     Node n2 = (Node) b;
 
     if (n1->values[2] == n2->values[2]) {
-        return (n1->values[1] - n2->values[1]);
+        if(n1->values[1] - n2->values[1] > 0) return 1;
+        else if(n1->values[1] - n2->values[1] < 0) return -1;
+        else return 0;
     }
-    
-    return (n1->values[2] - n2->values[2]);
+    else if(n1->values[2] - n2->values[2] > 0) return 1;
+    else return -1;
 }
 
 static Node newNode(char *urlName, char *urlPath, double *values) {
