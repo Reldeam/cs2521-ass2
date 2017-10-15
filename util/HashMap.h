@@ -1,3 +1,6 @@
+#ifndef HASHMAP_H
+#define HASHMAP_H
+
 typedef struct HashMap * HashMap;
 
 HashMap newHashMap(int (*compare) (void * a, void * b), unsigned long (* hash) (void * value));
@@ -13,3 +16,5 @@ int sizeHashMap(HashMap map);
 int emptyHashMap(HashMap map);
 
 void freeHashMap(HashMap map);
+
+#endif

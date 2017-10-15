@@ -111,6 +111,12 @@ int emptyBST(BST tree)
 	return tree->size ? 0 : 1;
 }
 
+void * rootBST(BST tree)
+{
+    if(!tree || !tree->root) return NULL;
+    return tree->root->value;
+}
+
 void * maxBST(BST tree)
 {
 	if(!tree) return NULL;

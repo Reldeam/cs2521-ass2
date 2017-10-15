@@ -1,3 +1,6 @@
+#ifndef BST_H
+#define BST_H
+
 #include "Queue.h"
 
 typedef struct BST * BST;
@@ -15,9 +18,12 @@ void printBST(BST tree);							// Print entire BST
 int sizeBST(BST tree);								// Number of nodes in BST
 int emptyBST(BST tree);							// Check if BST is empty
 
+void * rootBST(BST tree);
 void * maxBST(BST tree);							// Maximum value in BST
 void * minBST(BST tree);							// Minimum value in BST
 
 Queue getQueueBST(BST tree);
 
 void freeBST(BST tree);
+
+#endif

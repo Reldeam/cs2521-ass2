@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "PriorityQueue.h"
+#include "BST.h"
 
 PriorityQueue newPriorityQueue(int (*compare)(void * a, void * b))
 {
