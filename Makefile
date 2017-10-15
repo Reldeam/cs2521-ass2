@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -Werror -g
-BINS=test pagerank invertedIndex searchTfIdf searchPagerank
+BINS=test pagerank invertedIndex searchTfIdf searchPagerank scaledFootrule
 
 all : $(BINS)
 
@@ -18,6 +18,9 @@ searchPagerank.o : searchPagerank.c util/PriorityQueue.h util/BST.h util/Queue.h
 
 searchTfIdf : searchTfIdf.o collection.o util/BST.o util/PriorityQueue.o util/HashMap.o util/Queue.o -lm
 searchTfIdf.o : searchTfIdf.c collection.h util/BST.h util/PriorityQueue.h util/HashMap.h util/Queue.h 
+
+scaledFootrule : scaledFootrule.o util/BST.o util/Queue.o util/HashMap.o util/PriorityQueue.o
+scaledFootrule.o : scaledFootrule.c util/BST.h util/Queue.h util/HashMap.h util/PriorityQueue.h
 
 collection.o : collection.c collection.h util/Queue.h
 
