@@ -10,6 +10,7 @@
 #include <math.h>
 #include <ctype.h>
 
+#include "collection.h"
 #include "util/BST.h"
 #include "util/HashMap.h"
 #include "util/Queue.h"
@@ -43,25 +44,22 @@ int main (int argc, char *argv[])
     char * urls = malloc(sizeof(char) * MAX_STRING);
 
     FILE *fp;
-      
-    fp = fopen(URL_PATH "collection.txt", "r");
     
-    char *URLsArray[MAX_STRING];
+    Queue urlsQueue = getUrls();
+    totalNumberURLS = sizeQueue(urlsQueue);
+  
+    char urlsPathArray[(int)totalNumberURLS][MAX_STRING];
+    char urlsArray[(int)totalNumberURLS][MAX_STRING];    
     int k = 0;
+    
 
-    //Scans through the 'collection.txt' from part1 to:
-        //1. Copy all URLs into an Array of strings so that can open files
-        //2. Calculate total number of URLs
-
-    while (fscanf(fp, "%s", urls) != EOF) {
-        URLsArray[(int)totalNumberURLS] = malloc((strlen(urls) + strlen(URL_PATH) + strlen(".txt")) + 1);
-        strcpy(URLsArray[(int)totalNumberURLS],URL_PATH);
-        strcat(urls,".txt");
-        strcat(URLsArray[(int)totalNumberURLS],urls);
-        totalNumberURLS++;
-    }   
-
-    fclose(fp);
+    for (k = 0; k < totalNumberURLS; k++) {
+        urls = nextQueue(urlsQueue);    
+        strcpy(urlsArray[k], urls);
+        strcpy(urlsPathArray[k],URL_PATH);  
+        strcat(urls,".txt");         
+        strcat(urlsPathArray[k],urls);        
+    }
     
     int i = 1;
     
@@ -133,7 +131,7 @@ int main (int argc, char *argv[])
     for (i = 0; i < totalNumberURLS; i++) {
   
         //Going through Array of saved urls
-        fp = fopen(URLsArray[i], "r");
+        fp = fopen(urlsPathArray[i], "r");
         
         while (fscanf(fp, "%s", dummyUrl) != EOF) {
             //Remove any punctuation etc.
@@ -204,7 +202,7 @@ int main (int argc, char *argv[])
         if (i == totalNumberURLS) {
             printf("Idf ==             |");            
         } else {
-            printf("%s  |", URLsArray[i]);        
+            printf("%s  |", urlsPathArray[i]);        
         }
 
         for (k = 0; k < argc + 2; k++) {
@@ -219,7 +217,7 @@ int main (int argc, char *argv[])
     Node node;    
     
     for (i = 0; i < totalNumberURLS; i++) {
-        addPriorityQueue(q,newNode(URLsArray[i],URLsArray[i],idfTfArray[i]));
+        addPriorityQueue(q,newNode(urlsArray[i],urlsPathArray[i],idfTfArray[i]));
     }
     
     while (!emptyPriorityQueue(q)) {
@@ -227,7 +225,7 @@ int main (int argc, char *argv[])
         if (node->values[1] == 0) {
             break;
         }
-        printf("%s %f \n", node->urlName, node->values[1]);                
+        printf("%s  %f \n", node->urlName, node->values[1]);                
     }
     
     return 0;
