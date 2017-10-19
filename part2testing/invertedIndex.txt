@@ -1,0 +1,6 @@
+example document2
+this document1 document2
+is document1 document2
+another document2
+a document1
+sample document1 document2

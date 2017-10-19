@@ -15,9 +15,7 @@ int addPriorityQueue(PriorityQueue queue, void * value)
 
 void * nextPriorityQueue(PriorityQueue queue)
 {
-	void * value = maxBST(queue);
-	removeBST(queue, value);
-	return value;
+	return removeBST(queue, maxBST(queue));
 }
 
 void * peakPriorityQueue(PriorityQueue queue)
