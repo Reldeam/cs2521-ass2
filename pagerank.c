@@ -9,6 +9,7 @@
 #include "util/BST.h"
 #include "util/HashMap.h"
 #include "util/LinkedList.h"
+#include "util/PriorityQueue.h"
 
 struct UrlGraph {
 	char * name;
@@ -25,9 +26,17 @@ struct UrlGraph {
 typedef struct UrlGraph * UrlGraph;
 static UrlGraph newUrlGraph(char * name);
 static int compareUrlGraph(void * a, void * b);
+static int compareUrlRank(void * a, void * b);
 
 int main (int argc, char *argv[])
 {
+    if(argc != 4) return 1;
+    
+    double d = atof(argv[1]);
+    double diffPR = atof(argv[2]);
+    int maxIteration = atoi(argv[3]);
+    
+    
 	Queue urlNames = getUrls();
     QueueIterator urlIterator = newQueueIterator(urlNames);
     
@@ -97,10 +106,6 @@ int main (int argc, char *argv[])
     
     int t = 0;
     
-    int maxIteration = 1000;
-    double diffPR = 0.00001;
-    double d = 0.85;
-    
     double sum;
     double wIn;
     double wOut;
@@ -112,13 +117,11 @@ int main (int argc, char *argv[])
         
         t++;
         diff = 0;
-        resetQueueIterator(urlIterator);
         
+        resetQueueIterator(urlIterator);
         while(hasNextQueueIterator(urlIterator)) {
             url = getHashMap(urls, nextQueueIterator(urlIterator));
             incomingUrls = getQueueBST(url->incoming);
-            
-            url->pagerank = url->newPagerank;
             
             sum = 0;
             
@@ -134,17 +137,29 @@ int main (int argc, char *argv[])
             url->newPagerank = ((1-d)  / sizeHashMap(urls)) + d * sum;
             diff += fabs(url->newPagerank - url->pagerank);
         }
+        
+        resetQueueIterator(urlIterator);
+        while(hasNextQueueIterator(urlIterator)) {
+            url = getHashMap(urls, nextQueueIterator(urlIterator));
+            url->pagerank = url->newPagerank;
+        } 
     }
     
     resetQueueIterator(urlIterator);
     
-    FILE * file = fopen("pagerankList.txt", "w");
-    
-    // Set pagerank to 1/N and wIn and wOut
+    PriorityQueue queue = newPriorityQueue(compareUrlRank);
     while(hasNextQueueIterator(urlIterator)) {
         urlName = (char *) nextQueueIterator(urlIterator);
         url = getHashMap(urls, urlName);
-        fprintf(file, "%s, %d, %.7f\n", urlName, sizeBST(url->outgoing), url->pagerank);
+        addPriorityQueue(queue, url);
+    }
+    
+    FILE * file = fopen("pagerankList.txt", "w");
+    
+    // Set pagerank to 1/N and wIn and wOut
+    while(!emptyPriorityQueue(queue)) {
+        url = nextPriorityQueue(queue);
+        fprintf(file, "%s, %d, %.7f\n", url->name, sizeBST(url->outgoing), url->pagerank);
     }
     
     fclose(file);
@@ -174,4 +189,14 @@ static int compareUrlGraph(void * a, void * b)
     UrlGraph B = (UrlGraph) b;
     
     return(strcmp(A->name, B->name));
+}
+
+static int compareUrlRank(void * a, void * b)
+{
+    UrlGraph A = (UrlGraph) a;
+    UrlGraph B = (UrlGraph) b;
+    
+    if(A->pagerank - B->pagerank > 0) return 1;
+    else if(A->pagerank - B->pagerank < 0) return -1;
+    return 0;
 }
