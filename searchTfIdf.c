@@ -1,7 +1,15 @@
-///COMP2521 - Assignment 2 - Part 2
-//To Do:
-    //Edit path for reading "inverted.txt" etc.
-
+/*
+* COMP2521 - Data Structures and Algorithms
+* Assignment 2 - Simple Search Engines
+*
+* Group:	TwoBrothers
+*
+* Partners:	Kurt Banwell-Pachernegg	(Z5022859)
+*				Sam Eager 						(Z3414861)
+*
+*
+* Part 2. - Content-based Search Engine
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,264 +18,172 @@
 #include <math.h>
 #include <ctype.h>
 
-#include "util/BST.h"
-#include "util/HashMap.h"
-#include "util/Queue.h"
-#include "util/PriorityQueue.h"
+#include "collection.h"
+#include "BST.h"
+#include "HashMap.h"
+#include "Queue.h"
+#include "PriorityQueue.h"
 
-#define MAX_STRING 50
-#define URL_PATH "Sample1/"
+#define MAX_RESULTS 30
 
-//Creating a struct to hold urlName, urlPath and an array of doubles to hold information
-
-struct Node {
-    char *urlName;
-    char *urlPath;
-    double *values;
+struct Result {
+	char * url;
+	int count;
+	double rank;
 };
 
-typedef struct Node * Node;
+typedef struct Result * Result;
 
-static Node newNode(char *urlName, char *urlPath, double *values);
-void reformatString(char *src, char *dst);
-static int compare(void * a, void * b);
+static Result newResult(char * url);
+static int resultCompare(void * a, void * b);
+static int stringCompare(void * a, void * b);
 
 int main (int argc, char *argv[])
 {
-
-    assert(argc > 1);
+	/* The search terms are put into a priority queue that orders terms
+	alphabetically. This is required as getSearchUrls(terms) will only
+	search through invertedIndex.txt for urls once. If terms are not in
+	alphabetic order then some terms will be missed as terms is
+	consumed by getSearchUrls. */
+	PriorityQueue terms = newPriorityQueue(stringCompare);
+	
+	/* This queue combined with an iterator later on will provide an easy
+	way of iterating over the search terms multiple times. */
+	Queue keys = newQueue();
+	
+    int i, n;
     
-//------------totalNumbers URLS + copy urls into Array-------------//        
-    
-    double totalNumberURLS = 0;
-    char * urls = malloc(sizeof(char) * MAX_STRING);
-
-    FILE *fp;
-      
-    fp = fopen(URL_PATH "collection.txt", "r");
-    
-    char *URLsArray[MAX_STRING];
-    int k = 0;
-
-    //Scans through the 'collection.txt' from part1 to:
-        //1. Copy all URLs into an Array of strings so that can open files
-        //2. Calculate total number of URLs
-
-    while (fscanf(fp, "%s", urls) != EOF) {
-        URLsArray[(int)totalNumberURLS] = malloc((strlen(urls) + strlen(URL_PATH) + strlen(".txt")) + 1);
-        strcpy(URLsArray[(int)totalNumberURLS],URL_PATH);
-        strcat(urls,".txt");
-        strcat(URLsArray[(int)totalNumberURLS],urls);
-        totalNumberURLS++;
-    }   
-
-    fclose(fp);
-    
-    int i = 1;
-    
-//------------IDF Calculation-------------//    
-    
-    double count = 0;
-    int breaker = 0;
-    char * urls2 = malloc(sizeof(char) * MAX_STRING);
-    
-    double idfTfArray[(int)totalNumberURLS+1][argc+2];
-    //idfTfArray Structure
-    
-    /*
-            totalWordcound  iniqueSearchWords  TfIdf   argv[1]Tf    argv[2]Tf    ... 
-        URL1
-        URL2
-        URL3
-        ...
-        Idf val
-    
-    */
-    
-    memset(idfTfArray,0,sizeof(idfTfArray)); 
-    
-    while (i < argc) {
-        fp = fopen("invertedIndex.txt", "r");
-        while (fscanf(fp, "%s", urls2) != EOF) { 
-            //If breaker == 1, count urls on line until next string that doesn't contain url
-            if (breaker == 1) {
-                //check: string contains 'url' and a digit (ie. so cURL doesn't get picked as url), if not break
-                if (strstr(urls2, "url0") == NULL &&
-                    strstr(urls2, "url1") == NULL &&
-                    strstr(urls2, "url2") == NULL &&
-                    strstr(urls2, "url3") == NULL &&
-                    strstr(urls2, "url4") == NULL &&
-                    strstr(urls2, "url5") == NULL &&
-                    strstr(urls2, "url6") == NULL && 
-                    strstr(urls2, "url7") == NULL && 
-                    strstr(urls2, "url8") == NULL && 
-                    strstr(urls2, "url9") == NULL) {
-                    break;
-                }
-                count++;
-            }
-            //If reaches string that matches word provided, set breaker = 1
-            if (strcasecmp(urls2, argv[i]) == 0) {
-                breaker = 1;
-            }
-
-        }
-        //idf calculation for each word - only calculate if word is actually found, otherwise 0
-        if (count > 0) {
-            idfTfArray[(int)totalNumberURLS][i+2] = log10(totalNumberURLS/count);        
-        }
-        i++;
-        count = 0;
-        breaker = 0;
-        fclose(fp);                             
+	// Convert search terms to lowercase and load into words.
+    for(i = 1; i < argc; i++) {
+		n = 0;
+		while(argv[i][n] != '\0') {
+			argv[i][n] = tolower(argv[i][n]);
+			n++;
+		}
+        addPriorityQueue(terms, argv[i]);
+		addQueue(keys, argv[i]);
     }
-   
-//------------TF-------------//        
+	
+	/* Builds a HashMap where each key is a url name and the 
+	corresponding value is the number of times the words in the url 
+	matched a search term. */
+	HashMap urlCount = getSearchUrls(terms);
+	
+	// An array of all the matching url names.
+	char ** urls = (char **) getKeySetHashMap(urlCount);
+	
+	/* This HashMap will be populated with url names as the keys and
+	a HashMap as the value. The HashMap value has words that the url 
+	contains that matched the search terms as the keys, with each word 
+	having a corresponding number of times the word appears in the url 
+	as the value. */
+	HashMap wordCount = newStringHashMap();
 
-    int totalWordsInUrl = 0;
-    char * urls3 = malloc(sizeof(char) * MAX_STRING); 
-    char * dummyUrl = malloc(sizeof(char) * MAX_STRING); 
-    int j = 0;
- 
-  
-    for (i = 0; i < totalNumberURLS; i++) {
-  
-        //Going through Array of saved urls
-        fp = fopen(URLsArray[i], "r");
-        
-        while (fscanf(fp, "%s", dummyUrl) != EOF) {
-            //Remove any punctuation etc.
-            reformatString(dummyUrl, urls3);
-            if (strcmp(urls3, "#start") != 0 && strcmp(urls3, "Section-1") != 0 && strcmp(urls3, "#end") != 0 && strcmp(urls3, "Section-2") != 0) {
-                //Scanning through arguments and adding them to relavant array position
-                for (k = 1; k < argc; k++) {
-                    if (strcasecmp(argv[k],urls3) == 0) {
-                        idfTfArray[i][k+2]++;
-                    }
-                }
-                totalWordsInUrl++;            
-            }
-        }
-        
-        fclose(fp);
-        //Total number of words in the doc
-        idfTfArray[i][0] = totalWordsInUrl;
-        totalWordsInUrl = 0;
-                
-        //Calculating tf for all search words in this particular url i
-        for (j = 1; j < argc; j++) {
-            idfTfArray[i][j+2] = idfTfArray[i][j+2]/idfTfArray[i][0];
-        }        
-    } 
-    
-    //Calculating Tf-Idf
-    
-    double TfIdf = 0;
-    double numSearchWordsInUrl = 0;
-    
-    //Iterate through all urls
-    for (i = 0; i < totalNumberURLS; i++) {
-        TfIdf = 0;
-        numSearchWordsInUrl = 0;
-        
-        //iterate through all search terms for this url
-        for (k = 1; k < argc; k++) {
-            //If word was found (ie. a positive Tf value) then add one to totalNumberWords found
-            if (idfTfArray[i][k+2] > 0) {
-                numSearchWordsInUrl++;
-            }
-            //              Tf * Idf            
-            TfIdf = TfIdf + (idfTfArray[i][k+2]*idfTfArray[(int)totalNumberURLS][k+2]);
-        }
-        idfTfArray[i][2] = numSearchWordsInUrl;
-        idfTfArray[i][1] = TfIdf;
-    }      
-      
-//------------PRINTING OUT RESULTS-------------//        
-/*
-    printf("URLS               |");
-    printf("%s|","#words");
-    
-    for (i = 1; i < argc + 2; i++) {
-        if (i == 1) {
-            printf("TfIdf|");
-        } else if (i == 2) {
-            printf("#words|");            
-        } else {
-            printf("a%d-Tf|",i-2);
-        }
-    }
-    
-    printf("\n");
-    
-    for (i = 0; i < totalNumberURLS + 1; i++) {
-        if (i == totalNumberURLS) {
-            printf("Idf ==             |");            
-        } else {
-            printf("%s  |", URLsArray[i]);        
-        }
-
-        for (k = 0; k < argc + 2; k++) {
-            printf("%.3f|", idfTfArray[i][k]);            
-        }
-
-        printf("\n");
-    }    
-*/   
-    PriorityQueue q = newPriorityQueue(compare);
-    
-    Node node;    
-    
-    for (i = 0; i < totalNumberURLS; i++) {
-        addPriorityQueue(q,newNode(URLsArray[i],URLsArray[i],idfTfArray[i]));
-    }
-    
-    while (!emptyPriorityQueue(q)) {
-        node = (Node) nextPriorityQueue(q);
-        if (node->values[1] == 0) {
-            break;
-        }
-        printf("%s %f \n", node->urlName, node->values[1]);                
-    }
-    
-    return 0;
+	// Populate the wordCount HashMap.
+	for(i = 0; i < sizeHashMap(urlCount); i++)
+		addHashMap(wordCount, urls[i], getUrlWordsFrequency(urls[i]));
+	
+	/* Each matching url will be converted to a Result which contains
+	the number of search terms the url matched as well as its tf-idf value.
+	
+	These results are then put in this priority queue which will order the
+	results as per the specifications in Part 2. of the assignment. */
+	PriorityQueue results = newPriorityQueue(resultCompare);
+	
+	double tf;
+	double idf;
+	
+	char * url;
+	char * word;
+	
+	Result result;
+	HashMap words;
+	int count, totalWords, frequency;
+	
+	// Reminder: keys are the search terms.
+	QueueIterator iterator = newQueueIterator(keys);
+	
+	/* The results priority queue is populated by iterating over the urls
+	and calculating the tf-idf for each one. */
+	for(i = 0; i < sizeHashMap(urlCount); i++) {
+		
+		url = urls[i];
+		
+		// Number of search terms the url has matched.
+		count = getInteger(getHashMap(urlCount, url));
+		
+		/* The words that the url matched (as keys) with corresponding number of
+		times the word appears in the url as the value. */
+		words = getHashMap(wordCount, url);
+		
+		// The total number of words that the url contains.
+		// (See collection.h for more information)
+		totalWords = getInteger(getHashMap(words, " "));
+		
+		result = newResult(url);
+		result->count = count;
+		
+		idf = log10((double) sizeHashMap(urlCount) / count);
+		
+		/* All of the search terms are itterated over and the tf-idf value is
+		calculated for any terms that exist in the current url.
+		
+		This is cheaper than creating a keyset of words for ^most searches.
+		
+		^ A search with many search terms that has spares results (i.e.
+		one url match per term) would make this approach less efficient
+		than generating keysets for each word. */
+		while(hasNextQueueIterator(iterator)) {
+			word = nextQueueIterator(iterator);
+			if(!existsHashMap(words, word)) continue;
+			frequency = getInteger(getHashMap(words, word));
+			
+			tf = ((double) frequency / totalWords) * idf;
+			result->rank += tf * idf;
+		}
+		
+		resetQueueIterator(iterator);
+		
+		addPriorityQueue(results, result);
+	}
+	
+	count = 0; // Counter for MAX_RESULTS
+	
+	// Print out the results in the correct order.
+	// (Maximum of 30 results)
+	while(!emptyPriorityQueue(results)) {
+		result = nextPriorityQueue(results);
+		printf("%s %f\n", result->url, result->rank);
+		if(++count == MAX_RESULTS) break;
+	}
+	
+	return 1;
 }
 
-//Below strips string of punctuation (if any)
-//credit to https://stackoverflow.com/questions/1841758/how-to-remove-punctuation-from-a-string-in-c
-
-void reformatString(char *src, char *dst) {
-    for (; *src; ++src)
-        if (!ispunct((unsigned char) *src))
-            *dst++ = tolower((unsigned char) *src);
-    *dst = 0;
+static Result newResult(char * url)
+{
+	Result result = malloc(sizeof(struct Result));
+	result->url = url;
+	result->count = 0;
+	result->rank = 0;
+	return result;
 }
 
-//Compare function that has a two tiered compared
-//      1. Compares # of unique search terms that appear in url Node->values[2]
-//      2. If equal, then it will compared idTfd value of these urls Node->values[1]
-
-static int compare(void * a, void * b) {
-    
-    Node n1 = (Node) a;
-    Node n2 = (Node) b;
-
-    if (n1->values[2] == n2->values[2]) {
-        if(n1->values[1] - n2->values[1] > 0) return 1;
-        else if(n1->values[1] - n2->values[1] < 0) return -1;
-        else return 0;
-    }
-    else if(n1->values[2] - n2->values[2] > 0) return 1;
-    else return -1;
+static int resultCompare(void * a, void * b)
+{
+	Result A = (Result) a;
+	Result B = (Result) b;
+	
+	int result = A->count - B->count;
+	if(result != 0) return result;
+	
+	if(A->rank - B->rank > 0) return 1;
+	if(A->rank - B->rank < 0) return -1;
+	
+	return strcmp(A->url, B->url);
 }
 
-static Node newNode(char *urlName, char *urlPath, double *values) {
-    
-    Node node = malloc(sizeof(struct Node));
-    
-    node->urlName = urlName;
-    node->urlPath = urlPath;
-    node->values = values;
-    
-    return node;
+static int stringCompare(void * a, void * b)
+{
+	return strcmp((char *) b, (char *) a);
 }

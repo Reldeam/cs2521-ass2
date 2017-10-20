@@ -1,33 +1,31 @@
 CC=gcc
 CFLAGS=-Wall -Werror -g
-BINS=test pagerank invertedIndex searchTfIdf searchPagerank scaledFootrule
+BINS=pagerank inverted searchTfIdf searchPagerank scaledFootrule
 
 all : $(BINS)
 
-test : test.o util/BST.o util/Queue.o util/HashMap.o collection.o util/PriorityQueue.o
-test.o : test.c util/BST.h util/Queue.h util/PriorityQueue.h util/HashMap.h util/PriorityQueue.h
+pagerank : pagerank.o collection.o Queue.o BST.o HashMap.o LinkedList.o PriorityQueue.o Number.o
+pagerank.o : pagerank.c collection.h Queue.h BST.h HashMap.h LinkedList.h PriorityQueue.h Number.h
 
-pagerank : pagerank.o collection.o util/Queue.o util/BST.o util/HashMap.o util/LinkedList.o util/PriorityQueue.o
-pagerank.o : pagerank.c collection.h util/Queue.h util/BST.h util/HashMap.h util/LinkedList.h util/PriorityQueue.h
+inverted : inverted.o collection.o BST.o PriorityQueue.o HashMap.o Queue.o Number.o
+inverted.o : inverted.c collection.h BST.h PriorityQueue.h HashMap.h Queue.h Number.h
 
-invertedIndex : invertedIndex.o collection.o util/BST.o util/PriorityQueue.o util/HashMap.o util/Queue.o
-invertedIndex.o : invertedIndex.c collection.h util/BST.h util/PriorityQueue.h util/HashMap.h util/Queue.h
+searchPagerank : searchPagerank.o collection.o PriorityQueue.o BST.o Queue.o HashMap.o BST.o Number.o
+searchPagerank.o : searchPagerank.c collection.h PriorityQueue.h BST.h Queue.h HashMap.h BST.h Number.h
 
-searchPagerank : searchPagerank.o util/PriorityQueue.o util/BST.o util/Queue.o util/HashMap.o util/BST.o
-searchPagerank.o : searchPagerank.c util/PriorityQueue.h util/BST.h util/Queue.h util/HashMap.h util/BST.h
+searchTfIdf : searchTfIdf.o collection.o BST.o PriorityQueue.o HashMap.o Queue.o Number.o -lm
+searchTfIdf.o : searchTfIdf.c collection.h BST.h PriorityQueue.h HashMap.h Queue.h Number.h
 
-searchTfIdf : searchTfIdf.o collection.o util/BST.o util/PriorityQueue.o util/HashMap.o util/Queue.o -lm
-searchTfIdf.o : searchTfIdf.c collection.h util/BST.h util/PriorityQueue.h util/HashMap.h util/Queue.h 
+scaledFootrule : scaledFootrule.o BST.o Queue.o HashMap.o PriorityQueue.o Number.o
+scaledFootrule.o : scaledFootrule.c BST.h Queue.h HashMap.h PriorityQueue.h Number.h
 
-scaledFootrule : scaledFootrule.o util/BST.o util/Queue.o util/HashMap.o util/PriorityQueue.o
-scaledFootrule.o : scaledFootrule.c util/BST.h util/Queue.h util/HashMap.h util/PriorityQueue.h
+collection.o : collection.c collection.h Queue.h Number.h HashMap.h
 
-collection.o : collection.c collection.h util/Queue.h
-
-Queue.o : util/Queue.c util/Queue.h
-BST.o : util/BST.c util/BST.h util/Queue.h
-PriorityQueue.o : util/PriorityQueue.c util/PriorityQueue.h util/BST.h
-HashMap.o : util/HashMap.c util/HashMap.h util/BST.h
+Queue.o : Queue.c Queue.h
+BST.o : BST.c BST.h Queue.h
+PriorityQueue.o : PriorityQueue.c PriorityQueue.h BST.h
+HashMap.o : HashMap.c HashMap.h BST.h
+Number.o : Number.c Number.h
 
 clean :
 	rm -f $(BINS) *.o core *.dSYM
