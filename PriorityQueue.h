@@ -6,10 +6,15 @@
 *
 * Partners:	Kurt Banwell-Pachernegg	(Z5022859)
 *				Sam Eager 						(Z3414861)
+*
+* PriorityQueue is an extention of BST, providing next and peak methods
+* as well as alias for other methods.
 */
 
 #ifndef PRIORITY_QUEUE_H
 #define PRIORITY_QUEUE_H
+
+#include <stdlib.h>
 
 #include "BST.h"
 

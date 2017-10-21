@@ -197,6 +197,15 @@ int main (int argc, char *argv[])
 	
 	// Reduce matrix until all keys can be assigned positions.
     while(!allAssigned(size, assignments)) {
+		
+		for(i = 0; i < size; i++) {
+			for(j = 0; j < size; j++) {
+				printf("%f ", matrix[i][j]);
+			}
+			printf("\n");
+		}
+		printf("\n");
+		
         reduceMatrix(size, matrix);
         memset(currentAssignments, -1, sizeof(int) * size);
         assignments = assign(size, matrix, currentAssignments);
@@ -304,33 +313,9 @@ static int * assign(int size, double matrix[size][size], int * currentAssignment
 {
     int i, j, k;
     int columnAssigned;
-	int numZeros;
     
     int * assignments = malloc(sizeof(int) * size);
     for(i = 0; i < size; i++) assignments[i] = currentAssignments[i];
-	
-	/* Assign any keys that have only one zero in any row. If a row is
-	found that does not have a zero then return assignments as is. 
-	
-	Note: This prestep need only be done once. This function is
-	recursive and so this prestep should be moved to a wrapper function.
-	We have chosen not to do this to maintain readability for marking, 
-	leaving it here only increases the time complexity by a constant and
-	so does not effect the complexity class. */
-	for(i = 0; i < size; i++) {
-		if(assignments[i] != -1) continue; 
-		numZeros = 0;
-		columnAssigned = 0;
-		for(j = 0; j < size; j++) {
-			if(matrix[i][j] == 0) {
-				if(++numZeros > 1) break;
-				columnAssigned = j;
-			}
-		}
-		if(numZeros == 0) return assignments;
-		if(numZeros == 1) assignments[i] = j;
-	}
-	
     
     for(i = 0; i < size; i++) {
         if(assignments[i] != -1) continue; 
